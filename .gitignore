@@ -1,0 +1,10 @@
+node_modules/
+dist/
+.mdgraph/
+.DS_Store
+*.log
+html/
+
+# MemPalace per-project files (issue #185)
+mempalace.yaml
+entities.json
