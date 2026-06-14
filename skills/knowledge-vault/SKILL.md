@@ -74,16 +74,19 @@ Prefer structured frontmatter:
 ---
 id: stable-note-id
 title: Human Readable Title
+description: One sentence summary
 type: knowledge
 status: active
 tags: []
 aliases: []
+resource: Optional external URI or path
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
 ---
 ```
 
 Use stable `id` values because MDGraph and agents use `id` for retrieval. Do not change an existing note's `id` casually; changing it breaks references unless links are updated deliberately.
+Use `description` for a compact one-sentence summary (recommended ≤ 80 characters) that can appear in search previews, generated indexes, and agent context. Use `resource` when a note describes a canonical external asset, such as a GitHub repository, local project path, API endpoint, documentation page, dashboard, paper, or website. Omit the `resource` field entirely for purely abstract notes rather than leaving it blank.
 Choose `type` from the role/category values below; choose `status` from the lifecycle values below.
 
 Recommended `type` values (role/category only; never lifecycle):
@@ -112,6 +115,30 @@ archived     # archived, no longer active
 
 `type` expresses the note's role or category. `status` expresses its lifecycle state. Do not encode lifecycle into `type` — for example, use `type: research` + `status: archived` instead of `type: research-archive`. Use `tags: [evergreen]` for timeless content instead of `status: evergreen`.
 `inbox` means capture-bucket role; use `status: draft` for unorganized lifecycle state.
+
+### OKF-inspired conventions
+
+KnowledgeVault borrows a few lightweight ideas from Open Knowledge Format (OKF) while keeping Markdown as the source of truth and MDGraph's SQLite index as a rebuildable cache.
+
+- Treat each Markdown file as one knowledge concept/note.
+- Keep `type` non-empty on all real notes. MDGraph can fall back to `note`, but producers should write explicit types — do not rely on the fallback.
+- Prefer `description` for one-sentence summaries.
+- Prefer `resource` when a note is anchored to an external or canonical asset.
+- Unknown frontmatter keys are allowed; preserve them when updating notes.
+- Broken links are warnings, not hard failures. They may represent planned or not-yet-written knowledge.
+
+Use conventional sections when they fit the note. These are guidance, not hard requirements:
+
+```text
+## Summary / ## 一句话总结
+## Context / ## 背景
+## Examples / ## 示例
+## Sources / ## 来源
+## Citations / ## 引用
+## Related Notes / ## 相关笔记
+```
+
+For research notes, prefer `## Sources` for source list and `## Citations` only when citing specific claims. For durable knowledge notes, prefer `## Related Notes` for internal wikilinks.
 
 ## Which folder to use
 
