@@ -26,6 +26,8 @@ See `knowledge-vault` skill's "Engineering Workflow Phases" section for full def
 
 When Brief determines the work type, initialize `## Phase Progress` based on the routing table. Mark non-applicable phases as `N/A` upfront — do not list them as "pending".
 
+Phase tracking is workflow state, not formatting. Do not let generic Markdown formatters infer, reorder, or overwrite existing Phase Progress statuses. A formatter may insert a missing empty template, but only phase commands should update status values.
+
 Example for **investigation** type (Brief → Research → Plan → Implement → Verify → Sink):
 
 ```markdown
@@ -109,6 +111,7 @@ If the next phase is **mandatory** (Plan, Implement, Verify), do NOT offer skip 
    - Folder: `<vault-root>/10_tasks/{timestamp}_{kebab-name}/`
    - Files: `{kebab-name}.md`, `task_plan.md`, `findings.md`, `progress.md`
    - Write problem statement into canonical task file's `## Goal`
+   - Include `## Scope`, `## Constraints`, `## Success Criteria`, `## Context`, `## Phase Progress`, `## Decisions`, `## Result`, and `## Follow-ups`
    - Initialize `## Phase Progress` table based on work type routing (mark N/A phases)
 
 5. Auto-transition: prompt next applicable phase (typically `/phase-research`)

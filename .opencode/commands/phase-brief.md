@@ -25,10 +25,64 @@ Execute the **Brief** phase:
    - Generate timestamp: `date +%Y%m%d_%H%M%S`
    - Resolve `<vault-root>` from the active vault configuration, MDGraph MCP status, explicit user path, or the user's configured KnowledgeVault path.
    - Create: `<vault-root>/10_tasks/{timestamp}_{kebab-name}/`
-   - Create canonical task file: `{kebab-name}.md` with:
-     - Problem statement in `## Goal`
-     - Work type in `## Context`
-     - Initialize `## Phase Progress` table based on work type routing (mark N/A phases upfront)
+   - Create canonical task file: `{kebab-name}.md` using this shape:
+     ```markdown
+     ---
+     id: 10_tasks_{timestamp}_{kebab-name}
+     title: [Task Title]
+     type: agent_task
+     status: in_progress
+     tags: [agent-task]
+     aliases: []
+     created: YYYY-MM-DD
+     updated: YYYY-MM-DD
+     ---
+
+     # [Task Title]
+
+     ## Goal
+
+     [problem statement]
+
+     ## Scope
+
+     - In scope: ...
+     - Out of scope: ...
+
+     ## Constraints
+
+     - ...
+
+     ## Success Criteria
+
+     - ...
+
+     ## Context
+
+     - Work type: [investigation | migration | implementation | review | knowledge-gap]
+     - Related planning files:
+       - `task_plan.md`
+       - `findings.md`
+       - `progress.md`
+
+     ## Phase Progress
+
+     | Phase | Status | Completed |
+     |-------|--------|-----------|
+     | Brief | ✅ done | YYYY-MM-DD |
+     | Research | ⬜ pending / N/A | - |
+     | Plan | ⬜ pending / N/A | - |
+     | Implement | ⬜ pending / N/A | - |
+     | Verify | ⬜ pending | - |
+     | Sink | ⬜ pending / N/A | - |
+
+     ## Decisions
+
+     ## Result
+
+     ## Follow-ups
+     ```
+   - Initialize `## Phase Progress` based on work type routing (mark N/A phases upfront)
    - Create planning files: `task_plan.md`, `findings.md`, `progress.md`
    - Update Phase Progress: Brief ✅
 

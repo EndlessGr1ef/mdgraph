@@ -62,11 +62,24 @@ updated: YYYY-MM-DD
 
 ## Goal
 
+## Scope
+
 ## Context
 
 ## Constraints
 
-## Plan
+## Success Criteria
+
+## Phase Progress
+
+| Phase | Status | Completed |
+|-------|--------|-----------|
+| Brief | ✅ done | YYYY-MM-DD |
+| Research | ⬜ pending / N/A | - |
+| Plan | ⬜ pending / N/A | - |
+| Implement | ⬜ pending / N/A | - |
+| Verify | ⬜ pending | - |
+| Sink | ⬜ pending / N/A | - |
 
 ## Progress
 
@@ -78,6 +91,8 @@ updated: YYYY-MM-DD
 ```
 
 Use `status: done` when complete, `status: cancelled` when intentionally stopped before completion, and `status: archived` only when historical and no longer active.
+
+`## Phase Progress` is workflow state. Generic formatters must not infer, reorder, or overwrite existing status values. At most, tooling may insert this template when the section is missing; phase commands own status updates.
 
 ### When to Create Planning Files
 
