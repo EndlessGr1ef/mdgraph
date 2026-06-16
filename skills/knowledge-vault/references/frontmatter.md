@@ -42,6 +42,7 @@ active       # in use, maintained
 in_progress  # actively being implemented
 review       # waiting for review
 done         # finished, no longer actively updated
+cancelled    # intentionally stopped before completion
 archived     # archived, no longer active
 ```
 

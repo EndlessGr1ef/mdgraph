@@ -1,16 +1,18 @@
 ---
-description: "Phase 1/7: Framing — deconstruct the problem, create task folder (socratic-question + vault task)"
+description: "Phase 1/6: Brief — create/confirm task brief, create task folder and planning files"
 ---
 
 Load and apply the `engineering-phase` skill before doing anything else.
 
-Execute the **Create Task** phase:
+Execute the **Brief** phase:
 
-1. **Parse work type**: Check project-level `AGENTS.md` for project-specific keyword mappings. If no project mapping exists, default to full 7-phase path.
+1. **Parse the user's task**: Check project-level `AGENTS.md` for project-specific keyword mappings. If no project mapping exists, default to the full phase chain.
 
-2. **Framing with socratic-question**: Load `socratic-question` skill. Use its Phase 1 (Problem Reframing) to deconstruct the user's task description. Do NOT jump to code exploration or implementation. The goal is a clear problem statement.
+2. **Clarify the task**:
+   - If the task description is fuzzy or ambiguous, load `socratic-question` skill if available. Use its Phase 1 (Problem Reframing) to deconstruct the user's description. If unavailable, ask concise inline clarification questions.
+   - If the task description is already clear, do a lightweight confirmation with the user — restate the goal and get a nod.
 
-3. **Output problem statement**:
+3. **Output structured problem statement**:
    ```markdown
    ## Problem Statement
    - **Type**: [investigation | migration | implementation | review | knowledge-gap]
@@ -21,17 +23,18 @@ Execute the **Create Task** phase:
 
 4. **Create agent task folder** following knowledge-vault's Agent task workflow:
    - Generate timestamp: `date +%Y%m%d_%H%M%S`
-   - Create: `MyKnowledgeBase/10_agentTasks/{timestamp}_{kebab-name}/`
+   - Resolve `<vault-root>` from the active vault configuration, MDGraph MCP status, explicit user path, or the user's configured KnowledgeVault path.
+   - Create: `<vault-root>/10_tasks/{timestamp}_{kebab-name}/`
    - Create canonical task file: `{kebab-name}.md` with:
      - Problem statement in `## Goal`
      - Work type in `## Context`
      - Initialize `## Phase Progress` table based on work type routing (mark N/A phases upfront)
    - Create planning files: `task_plan.md`, `findings.md`, `progress.md`
-   - Update Phase Progress: Create Task ✅
+   - Update Phase Progress: Brief ✅
 
-5. **Auto-transition**: Find next applicable phase (first `⬜ pending` after Create Task) and prompt:
+5. **Auto-transition**: Find next applicable phase (first `⬜ pending` after Brief) and prompt:
    ```
-   ✅ Create Task complete → next: /phase-[next] ([purpose])
+   ✅ Brief complete → next: /phase-[next] ([purpose])
    Proceed? [yes/skip/stop/abort]
    ```
    - **yes** → execute next phase inline

@@ -1,12 +1,12 @@
 ---
-description: "Phase 2/7: Research — gather evidence via codegraph, tavily, vault search; write findings.md"
+description: "Phase 2/6: Research — gather evidence via codegraph, tavily, vault search; write findings.md (optional, skippable)"
 ---
 
 Load and apply the `engineering-phase` skill before doing anything else.
 
 Execute the **Research** phase:
 
-1. **Read current task state**: Find the active agent task folder (most recent `10_agentTasks/` entry with status `in_progress`, or from conversation context). Read the canonical task file and `## Phase Progress`.
+1. **Read current task state**: Find the active agent task folder (most recent `10_tasks/` entry with status `in_progress`, or from conversation context). Read the canonical task file and `## Phase Progress`.
 
 2. **Choose exploration strategy** based on work type from `## Problem Statement`:
    - **Investigation**: `codegraph` trace (callers/callees/impact) + log/config reading + `mdgraph_search` for similar past issues
@@ -26,10 +26,10 @@ Execute the **Research** phase:
 
 6. **Auto-transition**: Find next applicable phase (first `⬜ pending` after Research) and prompt:
    ```
-   ✅ Research complete → next: /phase-[next] ([purpose])
+   ✅ Research complete → next: /phase-plan (build task plan)
    Proceed? [yes/skip/stop/abort]
    ```
-   - **yes** → execute next phase inline
+   - **yes** → execute Plan phase inline
    - **skip** → only offered if next phase is skippable; mark as `⏭️ skipped`, prompt the one after
    - **stop** → return to normal conversation (task stays `in_progress`)
    - **abort** → set task status to `cancelled`, write reason to `progress.md`
