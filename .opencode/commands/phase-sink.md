@@ -6,6 +6,14 @@ Load and apply the `engineering-phase` skill before doing anything else.
 
 Execute the **Sink** phase. This phase is optional/conditional — only produce vault notes when durable reusable knowledge was created.
 
+Start with a short terminal-visible note:
+
+```text
+Phase: Sink
+Goal: preserve durable knowledge or record that none was produced
+Writes: vault notes, progress.md, canonical task file
+```
+
 1. **Read current state**: Read canonical task file (`## Decisions`, `## Goal`) + `findings.md` + `progress.md`.
 
 2. **Evaluate what knowledge was produced** by this task:
@@ -27,16 +35,16 @@ Execute the **Sink** phase. This phase is optional/conditional — only produce 
 
 6. **If adjustments are requested**: update the vault note, record the change in `progress.md`, and ask for confirmation again.
 
-7. **Only after user confirmation** (or skip decision): update Phase Progress: Sink ✅ + date.
+7. **Only after user confirmation** (or skip decision): update Phase Progress: Sink ✅ + date. Record the phase exit checklist summary in `progress.md`.
 
 8. **Update canonical task status** → `done`.
 
 9. **No auto-transition** — workflow complete. Output summary:
    ```
-   🏁 Task complete!
-   - Agent task: [task path] (status: done)
-   - Vault notes: [list of created/updated notes, or "none"]
-   - Key decisions: [summary from ## Decisions]
+    🏁 Task complete!
+    - Agent task: [task path] (status: done)
+    - Vault notes: [list of created/updated notes, or "none"]
+    - Key decisions: [summary from ## Decisions]
    ```
 
 Optional arguments (specific notes to sink, vault paths):
