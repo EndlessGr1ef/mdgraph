@@ -17,9 +17,9 @@ See `knowledge-vault` skill's "Engineering Workflow Phases" section for full def
 |-------|---------|-------|-------------|---------------------|
 | Brief | `/phase-brief` | `socratic-question` or inline framing fallback | Problem statement + task folder | Task confirmed + user agrees |
 | Research | `/phase-research` | `codegraph` + `tavily` + `mdgraph_search` | `findings.md` | findings has substantive content |
-| Plan | `/phase-plan` | direct; `planning-with-files` optional | `task_plan.md` with work graph | Plan written + user confirms |
-| Implement | `/phase-implement` | `deepwork` or direct | Code changes | Verification criteria met |
-| Verify | `/phase-verify` | direct checklist; external reviewer optional | Verification report | All checks pass or loop decision made |
+| Plan | `/phase-plan` | `planning-with-files` for Medium/Large; direct for Small | `task_plan.md` with work graph | Plan written + user confirms |
+| Implement | `/phase-implement` | direct; `deepwork` only if explicitly requested | Code changes | Verification criteria met |
+| Verify | `/phase-verify` | direct checklist; external reviewer only if explicitly requested | Verification report | All checks pass or loop decision made |
 | Sink | `/phase-sink` | `mdgraph_create_note` | Vault note(s) or "no durable knowledge" | Note written + confirmed, or skip recorded |
 
 ## Phase Progress initialization
@@ -87,6 +87,49 @@ Proceed? [yes/skip/stop/abort]
 
 If the next phase is **mandatory** (Plan, Implement, Verify), do NOT offer skip — only `yes/stop/abort`.
 
+## Task scale
+
+- **Small**: single-file or low-risk change; direct planning is allowed.
+- **Medium**: multi-file or multi-step work; use the standard task files and phase feedback.
+- **Large**: cross-module, risky, architectural, migration, release, or persistent debugging work; use full task files, detailed evidence, and diagrams.
+
+For Medium and Large tasks, the agent MUST use the actual planning-with-files skill.
+
+Within engineering-phase, the active agent task folder is the planning workspace.
+
+Brief MUST classify the task scale and record it in the canonical task file's `## Context`.
+
+## Phase feedback contract
+
+At the start of every phase, output a short terminal-visible note:
+
+```text
+Phase: [Brief/Research/Plan/Implement/Verify/Sink]
+Goal: [what this phase will resolve]
+Writes: [files expected to change]
+```
+
+At the end of every phase, output a short terminal-visible summary before the transition prompt:
+
+```text
+✅ [Phase] complete
+Updated: [files]
+Key points: [1-3 concrete findings/decisions/results]
+Next: /phase-[next]
+```
+
+## Phase exit checklist
+
+Before marking any phase complete, verify:
+
+- [ ] Required files were updated.
+- [ ] Terminal-visible phase summary was shown.
+- [ ] Medium/Large outputs include concrete evidence, file paths, commands, or decisions.
+- [ ] Large tasks include at least one Mermaid diagram in `findings.md` or `task_plan.md`.
+- [ ] The next phase has enough input to proceed.
+
+Record the completed checklist or a brief checklist summary in `progress.md`.
+
 ## Phase orchestration
 
 ### 1. Brief (`/phase-brief`)
@@ -112,6 +155,7 @@ If the next phase is **mandatory** (Plan, Implement, Verify), do NOT offer skip 
    - Files: `{kebab-name}.md`, `task_plan.md`, `findings.md`, `progress.md`
    - Write problem statement into canonical task file's `## Goal`
    - Include `## Scope`, `## Constraints`, `## Success Criteria`, `## Context`, `## Phase Progress`, `## Decisions`, `## Result`, and `## Follow-ups`
+   - Record task scale (`Small`, `Medium`, or `Large`) in `## Context`
    - Initialize `## Phase Progress` table based on work type routing (mark N/A phases)
 
 5. Auto-transition: prompt next applicable phase (typically `/phase-research`)
@@ -125,7 +169,7 @@ If the next phase is **mandatory** (Plan, Implement, Verify), do NOT offer skip 
    - **Review**: codegraph impact analysis + diff reading
    - **Knowledge-gap**: mdgraph_search + tavily
 
-2. Write all findings into `findings.md`.
+2. Write all findings into `findings.md`. For Medium/Large tasks, include concrete references. Large tasks must include at least one Mermaid diagram in `findings.md` or `task_plan.md`.
 
 3. When findings are substantive (at least 3 sections with code references, config values, or log excerpts; OR a section explicitly marked `## Definitive Finding` with a clear resolution statement):
    - Update Phase Progress: Research ✅
@@ -133,12 +177,13 @@ If the next phase is **mandatory** (Plan, Implement, Verify), do NOT offer skip 
 
 ### 3. Plan (`/phase-plan`)
 
-1. Based on Brief's problem statement and any Research findings, break work into tasks. Use `planning-with-files` if available; otherwise write `task_plan.md` directly.
+1. Based on Brief's problem statement and any Research findings, break work into tasks. For Medium and Large tasks, the agent MUST use the actual planning-with-files skill. For Small tasks, direct `task_plan.md` writing is allowed.
 2. Write `task_plan.md` with:
    - Work graph: ordered task list with clear dependencies
    - Lanes: parallel work tracks where possible
    - Each task: description, files involved, dependencies, verification criteria
    - Risk areas and complexity estimates flagged
+   - Mermaid diagram for Large tasks
 3. Update Phase Progress: Plan ✅
 4. Auto-transition: prompt `/phase-implement` (mandatory, no skip)
 
@@ -150,9 +195,9 @@ Choose implementation approach based on task complexity:
 |-----------|----------|
 | Single-file fix, < 20 lines | Direct implementation |
 | Multi-step but sequential, < 5 files | Sequential: work through task_plan items one by one, verify each before proceeding |
-| Complex, multi-file, risky | `deepwork` with oracle review gates |
+| Complex, multi-file, risky | Direct sequential implementation with review checkpoints; use `deepwork` only if explicitly requested |
 
-Track task IDs during implementation. Log each sub-task and status in `progress.md`.
+Track each sub-task and status in `progress.md`.
 
 After all tasks complete:
 - Reconcile cross-task conflicts
@@ -165,7 +210,7 @@ After all tasks complete:
 1. Review changes or findings against available phase inputs:
    - If `task_plan.md` exists and Plan is applicable, verify every plan item.
    - If Plan is N/A, verify against `findings.md`, `## Goal`, and the scope from Brief.
-   - For critical/risky changes → use an external reviewer skill if available.
+   - For critical/risky changes → use a stricter direct checklist; use an external reviewer only if explicitly requested.
    - For straightforward changes → direct review checklist:
      - [ ] Changes or findings match the goal and decisions
      - [ ] All applicable task_plan items are addressed, or Plan is N/A with a documented reason

@@ -9,3 +9,6 @@ html/
 # MemPalace per-project files (issue #185)
 mempalace.yaml
 entities.json
+
+# Local config backups may contain secrets.
+.backup-opencode-config/

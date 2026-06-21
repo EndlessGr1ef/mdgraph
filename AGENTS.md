@@ -58,3 +58,15 @@ Important behaviors already covered:
 - Commit messages should use Conventional Commits.
 - Do not commit `.mdgraph/*.db`, WAL/SHM files, generated `dist/`, or files under `html/`.
 - Do not include AI signatures in commits.
+
+## Magic Context and mdgraph coexistence rules
+
+This project uses both Magic Context and mdgraph MCP.
+
+- mdgraph is the single source of truth for project tasks, requirements, decisions, plans, and status.
+- Magic Context is only for session context compression, history recall, and auxiliary memory.
+- When Magic Context recalled information conflicts with mdgraph, mdgraph takes precedence.
+- Any task status change, requirement confirmation, architecture decision, TODO, milestone, or bug conclusion must be written to mdgraph.
+- Do not treat Magic Context project memory as the final project status.
+- Do not let Magic Context or dreamer automatically maintain Markdown files managed by mdgraph.
+- To persist conversation summaries, prefer calling mdgraph MCP to write to the corresponding Markdown node.
