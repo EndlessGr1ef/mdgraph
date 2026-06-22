@@ -19,7 +19,7 @@ Local Markdown knowledge vault for long-term memory. Markdown files are the dura
 > - Timestamp prefix (`yyyymmdd_hhmmss_`) for inbox/agent tasks/research/archive; semantic names for `30_knowledge/`
 > - Every note needs a stable `id`, a non-empty `type`, and at least one `tag`
 > - MDGraph indexes notes; `mdgraph_*` MCP tools for search/create/update
-> - Engineering phases: Brief → Research? → Plan → Implement → Verify → Sink?
+> - Engineering workflow: see `engineering-phase` skill
 
 ## When to use
 
@@ -58,13 +58,11 @@ Do **not** use this skill when:
 | "What frontmatter fields to use" | `references/frontmatter.md` |
 | "How to write / what makes a good note" | `references/writing.md` |
 | "MDGraph commands / MCP tools / create/update safety" | `references/mdgraph-workflow.md` |
-| "Agent task / engineering phase references" | `references/engineering-phases.md` |
 
 ## Boundary: vs other skills
 
 | Use this skill when | Use other skill when |
 |---|---|
 | Vault folder structure, naming, and organization | `obsidian-markdown` for Obsidian-specific syntax |
-| Agent task records and engineering workflow references | `engineering-phase` for `/phase-*` orchestration |
 | Creating/updating/searching vault notes via MDGraph | Direct codebase work that doesn't touch the vault |
-| Folder/frontmatter rules for phase task records | `deepwork` for heavy coding-only sessions (no vault phases) |
+| Folder/frontmatter rules for task records | `engineering-phase` for workflow orchestration and task shape |
