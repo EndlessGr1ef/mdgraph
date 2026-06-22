@@ -13,12 +13,12 @@ Research and Sink are marked with `?` because they are optional/conditional — 
 
 | Phase | Command | Purpose | Key Tool | Deliverable |
 |-------|---------|---------|----------|-------------|
-| 1. Brief | `/phase-brief` | Create/confirm task brief, create task folder | `socratic-question` or inline framing fallback | Problem statement + agent task folder |
-| 2. Research | `/phase-research` | Gather evidence (optional, skippable) | `codegraph` + `tavily` + `mdgraph_search` | `findings.md` |
-| 3. Plan | `/phase-plan` | Build work graph / lanes / dependencies / verification criteria | Direct planning; `planning-with-files` optional | `task_plan.md` |
-| 4. Implement | `/phase-implement` | Dispatch specialist lanes, implement, reconcile | `deepwork` or direct | Code changes |
-| 5. Verify | `/phase-verify` | Run checks/review gates, loop on failure | Direct checklist; external reviewer optional | Verification report |
-| 6. Sink | `/phase-sink` | Crystallize knowledge to vault (optional/conditional) | `mdgraph_create_note` | Vault note(s) or "no durable knowledge" |
+| 1. Brief | `/phase-brief` | Create/confirm task brief, create task note cluster | `socratic-question` or inline framing fallback; `mdgraph_create_note` | Problem statement + mdgraph task note cluster (4 notes) |
+| 2. Research | `/phase-research` | Gather evidence (optional, skippable) | `codegraph` + `tavily` + `mdgraph_search` + `mdgraph_get_graph` | Findings note via `mdgraph_update_note` |
+| 3. Plan | `/phase-plan` | Build work graph / lanes / dependencies / verification criteria | Direct planning; `planning-with-files` optional; `mdgraph_update_note` | Plan note via `mdgraph_update_note` |
+| 4. Implement | `/phase-implement` | Dispatch specialist lanes, implement, reconcile | `deepwork` or direct; `mdgraph_update_note` for progress | Code changes + progress note updates |
+| 5. Verify | `/phase-verify` | Run checks/review gates, loop on failure | Direct checklist; external reviewer optional; `mdgraph_update_note` | Verification report in progress note; task status → `review` |
+| 6. Sink | `/phase-sink` | Crystallize knowledge to vault (optional/conditional) | `mdgraph_create_note` + `mdgraph_update_note` for bidirectional links | Vault note(s) with bidirectional wikilinks or "no durable knowledge" |
 
 ## Agent Task Creation (Phase 1)
 
@@ -39,10 +39,26 @@ Example:
 ```
 10_tasks/20260611_153000_fix-panel-drift/
 ├── fix-panel-drift.md
-├── task_plan.md
+├── plan.md
 ├── findings.md
 └── progress.md
 ```
+
+### mdgraph Note Cluster
+
+Each task folder contains 4 mdgraph-indexed notes connected by wikilinks:
+
+- **Task note** (spine): `{slug}.md` — type: `agent_task`, status: `in_progress`
+  - The entry point for graph traversal
+  - Contains Goal, Scope, Phase Progress, Decisions, Result
+- **Findings note**: `findings.md` — type: `research`, status: `active`
+  - Contains `Task: [[task-id]]` wikilink back to spine
+- **Plan note**: `plan.md` — type: `agent_task`, status: `active`
+  - Contains `Task: [[task-id]]` wikilink back to spine
+- **Progress note**: `progress.md` — type: `agent_task`, status: `active`
+  - Contains `Task: [[task-id]]` wikilink back to spine
+
+Create all 4 notes via `mdgraph_create_note` in the Brief phase. Update them via `mdgraph_update_note` in subsequent phases. The task note's `aliases` field should include the slug for short-form wikilink resolution (e.g., `[[fix-panel-drift]]`).
 
 ### Canonical Task Shape
 
@@ -66,6 +82,10 @@ updated: YYYY-MM-DD
 
 ## Context
 
+Findings: [[{findings-note-id}]]
+Plan: [[{plan-note-id}]]
+Progress: [[{progress-note-id}]]
+
 ## Constraints
 
 ## Success Criteria
@@ -87,6 +107,8 @@ updated: YYYY-MM-DD
 
 ## Result
 
+Knowledge crystallized: [[{knowledge-note-id}]]
+
 ## Follow-ups
 ```
 
@@ -94,54 +116,40 @@ Use `status: done` when complete, `status: cancelled` when intentionally stopped
 
 `## Phase Progress` is workflow state. Generic formatters must not infer, reorder, or overwrite existing status values. At most, tooling may insert this template when the section is missing; phase commands own status updates.
 
-### When to Create Planning Files
+### When to Create the Note Cluster
 
-Create colocated `task_plan.md`, `findings.md`, `progress.md` when any condition is true:
+Always create all 4 notes in the cluster (task, findings, plan, progress) regardless of task complexity. The overhead of 3 extra `mdgraph_create_note` calls is negligible compared to the graph connectivity gained.
 
-- Task has 3+ distinct steps
-- Task needs cross-session recovery
-- Task involves multiple agents, repos, or file areas
-- Task includes research, implementation, validation, or decisions worth preserving
-- User explicitly asks to plan, split, organize, track, or resume work
+If mdgraph MCP is unavailable, fall back to direct file writes and call `mdgraph_sync` when available.
 
-If none apply, keep only the canonical task file and state in `## Plan` why planning files were skipped.
+### Note Cluster Rules
 
-### Planning File Rules
+Each note in the cluster is an independent mdgraph node with its own id, type, status, and tags:
 
-When planning files are needed, create files in the same task folder. Use `planning-with-files` if available; otherwise write the files directly with the same names and purposes:
+- Deliverable notes (findings, plan, progress) always contain `Task: [[task-id]]` as their first content line
+- The task note links to all deliverables in `## Context` via wikilinks
+- Phase transitions update the task note via `mdgraph_update_note` (Phase Progress + status field)
+- The task note's `aliases` field includes the slug for short-form wikilink resolution
 
-- `task_plan.md` — phase-level planning and status
-- `findings.md` — research notes, evidence, investigation details
-- `progress.md` — chronological session logs, validation results
-
-Index planning files from the canonical task file with relative links:
-
-```markdown
-## Context
-
-Related planning files in this task folder:
-
-- `task_plan.md`
-- `findings.md`
-- `progress.md`
-
-## Plan
-
-See `./task_plan.md`.
-```
-
-Use Chinese prose for the task record when the surrounding workflow is Chinese; keep paths, identifiers, commands, and code terms unchanged.
+Use `planning-with-files` if available for structured maintenance; otherwise update notes directly via `mdgraph_update_note`.
 
 ### Resume Rule
 
-When resuming a task, read the canonical task file first. Then follow links to planning files. Conflict resolution:
+When resuming a task:
 
-1. Canonical task file = authoritative index and summary
-2. `task_plan.md` = phase-level planning
-3. `findings.md` = evidence and investigation
-4. `progress.md` = chronological logs
+1. `mdgraph_get_note(id: task-id)` — returns note body + 1-hop graph context
+2. Parse `## Phase Progress` from the note body to find the last completed phase
+3. Follow `graph.outlinks` to reach deliverable note ids
+4. `mdgraph_get_note(id: deliverable-id)` for each needed artifact
+5. If mdgraph MCP is unavailable, read files directly from the vault path
 
-If files disagree, preserve evidence in subordinate files but update the canonical file so the next agent has a correct entry point.
+Conflict resolution:
+1. Task note = authoritative index and summary
+2. Plan note = phase-level planning
+3. Findings note = evidence and investigation
+4. Progress note = chronological logs
+
+If notes disagree, preserve evidence in subordinate notes but update the task note so the next agent has a correct entry point.
 
 ## Work Type Routing
 
@@ -157,7 +165,7 @@ Not all tasks need all 6 phases. After Brief, select the shortest path:
 
 Work type detection keywords should be defined in project-level `AGENTS.md`. Default to full 6-phase path when no keywords match.
 
-Review and knowledge-gap paths do not enter Implement. Their Verify/Sink phases read `findings.md`, the canonical task `## Goal`, and any explicit review scope instead of requiring `task_plan.md`.
+Review and knowledge-gap paths do not enter Implement. Their Verify/Sink phases read the findings note, the task note `## Goal`, and any explicit review scope instead of requiring the plan note.
 
 ## Skill Prerequisites and Fallbacks
 
@@ -166,7 +174,7 @@ This workflow may benefit from external/global skills, but it must remain execut
 | Optional dependency | Used for | Fallback |
 |---|---|---|
 | `socratic-question` | Problem framing in Brief | Ask concise inline clarification questions, then write the same Problem Statement |
-| `planning-with-files` | Structured `task_plan.md`, `findings.md`, `progress.md` maintenance | Create and update those Markdown files directly |
+| `planning-with-files` | Structured plan, findings, progress note maintenance | Create and update those notes directly via `mdgraph_update_note` |
 | `deepwork` | Complex/risky implementation sessions | Use the orchestrator's normal plan/delegate/verify workflow with explicit review gates |
 | `adversarial-reviewer` | High-risk challenge review | Use the direct review checklist and route code review to an available reviewer/oracle when supported |
 
@@ -174,7 +182,7 @@ This workflow may benefit from external/global skills, but it must remain execut
 
 After each phase completes:
 
-1. Update `## Phase Progress` in the canonical task file
+1. Update task note via `mdgraph_update_note`: update `## Phase Progress` (mark current phase ✅ done + date) and update `status` field when warranted. If mdgraph MCP is unavailable, write the file directly and call `mdgraph_sync` when available.
 2. Find the next applicable phase (first `⬜ pending` after current; skip N/A phases)
 3. Prompt user with next phase suggestion:
 
@@ -188,7 +196,7 @@ Options:
 - **yes**: enter next phase
 - **skip**: only for skippable phases; mark as `⏭️ skipped`, advance
 - **stop**: return to normal conversation (task stays `in_progress`)
-- **abort**: mark as `cancelled`, write brief reason to `progress.md`
+- **abort**: `mdgraph_update_note(id: task-id, status: "cancelled")`, write brief reason to progress note
 
 For mandatory phases (Plan, Implement, Verify), do NOT offer skip — only `yes/stop/abort`.
 
@@ -219,10 +227,11 @@ Optional/conditional phase. Evaluate whether durable reusable knowledge was prod
 2. Investigation findings worth referencing → `20_research/` note using original task timestamp
 3. Updated understanding of existing note → update via `mdgraph_update_note`
 4. Always add `tags` including the project/context tag
-5. Always add `source_task:` frontmatter field linking back to agent task folder path
-6. If no durable knowledge was produced, record `"No durable knowledge produced"` in `progress.md` and skip writing
-7. If MDGraph tools fail, write file directly and call `mdgraph_sync` when available
-8. After writing, ask user: "Written to vault: [note path]. Is the content correct? Any adjustments needed?" Only mark Sink done after the user confirms, or after applying requested adjustments, or after recording the skip decision.
+5. Always include `Source: [[task-id]]` wikilink in the knowledge note content (this creates the bidirectional edge for graph traversal). Also add `source_task:` frontmatter field linking back to agent task folder path as a stable reference.
+6. After creating the knowledge note, update the task note: `mdgraph_update_note(id: task-id, content: ...)` — add `## Result` section with `Knowledge crystallized: [[knowledge-note-id]]`. Then `mdgraph_update_note(id: task-id, status: "done")`.
+7. If no durable knowledge was produced, record `"No durable knowledge produced"` in the progress note and skip writing
+8. If MDGraph tools fail, write file directly and call `mdgraph_sync` when available
+9. After writing, ask user: "Written to vault: [note path]. Is the content correct? Any adjustments needed?" Only mark Sink done after the user confirms, or after applying requested adjustments, or after recording the skip decision.
 
 ## Skip Conditions
 
