@@ -19,7 +19,6 @@ Local Markdown knowledge vault for long-term memory. Markdown files are the dura
 > - Timestamp prefix (`yyyymmdd_hhmmss_`) for inbox/agent tasks/research/archive; semantic names for `30_knowledge/`
 > - Every note needs a stable `id`, a non-empty `type`, and at least one `tag`
 > - MDGraph indexes notes; `mdgraph_*` MCP tools for search/create/update
-> - Engineering workflow: see `engineering-phase` skill
 
 ## When to use
 
