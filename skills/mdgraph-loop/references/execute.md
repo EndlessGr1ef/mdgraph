@@ -1,33 +1,29 @@
 ---
-name: engineering-phase-implement
-description: Implementation phase — dispatch specialist lanes, implement, reconcile. Load this when the user says /phase-implement.
+name: mdgraph-loop-execute
+description: Execute phase — implement code changes with maker/checker. Load this when the user says /loop-execute.
 ---
 
-# Implement Phase (`/phase-implement`)
+# Execute Phase (`/loop-execute`)
 
-Dispatch specialist lanes, implement code changes, log progress.
+Implement code changes, log progress.
 
 ## Steps
 
-1. Choose execution mode based on task complexity:
+1. Choose mode by complexity:
 
    | Condition | Mode |
    |-----------|------|
-   | Single-file fix, < 20 lines | Direct implementation |
-   | Multi-step but sequential, < 5 files | Sequential implementation: work through plan note items one by one, verify each before proceeding |
+   | Single-file, < 20 lines | Direct |
+   | Multi-step, < 5 files | Sequential, verify each before next |
    | Complex, multi-file, risky | `deepwork` with oracle review gates |
 
-2. After each plan item is implemented, log progress to the progress note via `mdgraph_update_note`.
+2. After each plan item, log progress via `mdgraph_update_note`.
 
-3. **Maker/checker (always for non-trivial items)**: After each plan item, spawn `@oracle` in a **separate session** for inline review:
-   - Prompt: "Review the changes for plan item [N]. Does this match the PRD decisions? Are there regressions in touched areas? Any edge cases missed?"
-   - If oracle surfaces issues → feed back to `@fixer` for fixes, then re-review
-   - If oracle approves → proceed to next plan item
-   - Exception: trivial < 20-line single-file changes may self-review (see Sub-agent Token Budget)
+3. **Maker/checker (always)**: Spawn `@oracle` in separate session for inline review. Exception: < 20-line changes may self-review.
 
-4. After implementation + verification:
-   - If verification passes → update Phase Progress: Execution ✅ → auto-transition: prompt `/phase-verify`
-   - If verification fails → loop back within Execution (re-fix, re-verify). Max 3 attempts before asking user.
+4. After implementation:
+   - Pass → Phase Progress: Execute ✅ → `/loop-verify`
+   - Fail → loop back (re-fix, re-verify). Max 3 attempts.
 
 ## Output
 

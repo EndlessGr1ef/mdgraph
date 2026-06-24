@@ -1,39 +1,32 @@
 ---
-description: "Phase 5/6: Verify — run checks/review gates, adversarial review + oracle reconciliation"
+description: "Phase 5/6: Verify — run checks, goal convergence check, loop on failure"
 ---
 
-Load and apply the `engineering-phase` skill, then load `references/verify.md` for detailed execution instructions.
+Load and apply the `mdgraph-loop` skill, then load `references/verify.md` for detailed instructions.
+
+First, **Detect**: `mdgraph_search(status: "in_progress", tag: "agent-task")` to find active task. If none, ask user to run `/loop-init` first.
 
 Execute the **Verify** phase:
 
 ```text
 Phase: Verify
-Goal: verify outputs against the goal and plan decisions
+Goal: verify outputs against goal, check convergence
 Writes: progress.md (via mdgraph_update_note), task status → review
 ```
 
-1. **Read current state**: task note (`## Decisions`, `## Goal`) + findings note + plan note + progress note.
+1. **Read state**: task note + findings + plan + progress notes.
 
-2. **Review code changes** against PRD decisions and plan note:
-   - For critical/risky changes → use `adversarial-reviewer` skill
-   - For straightforward changes → direct review checklist:
-     - [ ] Changes match PRD decisions
-     - [ ] All plan items addressed
-     - [ ] No regressions in touched areas
-     - [ ] Edge cases handled
+2. **Review** against PRD decisions and plan:
+   - Critical → `adversarial-reviewer` skill
+   - Straightforward → direct checklist
 
-3. **Oracle reconciliation** (when adversarial-reviewer used): spawn `@oracle` in a **separate session** to reconcile:
-   - Prompt: "Reconcile the adversarial review findings. Which are actionable? Which are noise? What's the fix priority?"
-   - If actionable issues exist → loop back to Execution for fixes
-   - If no actionable issues → proceed
+3. **Oracle reconciliation** (if adversarial-reviewer used): spawn `@oracle` to reconcile.
 
-4. **Record verification results** in progress note via `mdgraph_update_note`. Update task status to `review` via `mdgraph_update_note(id: task-id, status: "review")`.
+4. **Goal convergence check**: Does output meet `## Success Criteria`?
+   - Not converged → `/loop-explore` or `/loop-execute`
+   - Converged → proceed
 
-5. **If verification fails** → report issues, offer to loop back to Execution.
+5. Record results. Update task status → `review`. Phase Progress: Verify ✅ → `/loop-crystallize`.
 
-6. **Update Phase Progress**: Verify ✅ + date via `mdgraph_update_note(id: task-id)`
-
-7. **Auto-transition**: prompt `/phase-sink` (mandatory, no skip offered).
-
-Optional arguments (specific areas to verify, review focus):
+Optional arguments (verification focus):
 $ARGUMENTS

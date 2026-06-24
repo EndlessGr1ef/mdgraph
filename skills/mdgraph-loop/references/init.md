@@ -1,9 +1,9 @@
 ---
-name: engineering-phase-init
-description: Init phase — create task, create mdgraph note cluster, scope work. Load this when the user says /phase-init or starts a new engineering task.
+name: mdgraph-loop-init
+description: Init phase — create task, create mdgraph note cluster, scope work. Load this when the user says /loop-init or starts a new engineering task.
 ---
 
-# Init Phase (`/phase-init`)
+# Init Phase (`/loop-init`)
 
 Create the task spine, scope the work, and launch the mdgraph note cluster.
 
@@ -11,7 +11,7 @@ Create the task spine, scope the work, and launch the mdgraph note cluster.
 
 1. Parse user description to identify work type hint:
    - Check project-level `AGENTS.md` for project-specific keyword mappings
-   - If no project mapping exists, default to full 6-phase path
+   - If no project mapping exists, default to full loop path
 
 2. Load `socratic-question` skill. Use Phase 1 (Problem Reframing) to deconstruct the user's description.
 
@@ -36,7 +36,7 @@ Create the task spine, scope the work, and launch the mdgraph note cluster.
       - path: `10_tasks/{timestamp}_{slug}/findings.md`
       - type: `research`, status: `active`
       - tags: `[findings, ...context-tags]`
-      - content: `Task: [[{task-id}]]` + `(Awaiting research phase)`
+      - content: `Task: [[{task-id}]]` + `(Awaiting explore phase)`
 
    c. **Plan note**: `mdgraph_create_note`
       - path: `10_tasks/{timestamp}_{slug}/plan.md`
@@ -56,7 +56,7 @@ Create the task spine, scope the work, and launch the mdgraph note cluster.
 
    If mdgraph MCP is unavailable, fall back to direct file writes and call `mdgraph_sync` when available.
 
-5. Auto-transition: prompt next applicable phase (typically `/phase-research`)
+5. Auto-transition: prompt next applicable phase (typically `/loop-explore`)
 
 ## Output
 

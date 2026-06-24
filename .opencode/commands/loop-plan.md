@@ -1,37 +1,31 @@
 ---
-description: "Phase 3/6: Plan — PRD decisions + task breakdown, write plan note via mdgraph"
+description: "Phase 3/6: Plan — PRD decisions + task breakdown, write plan note"
 ---
 
-Load and apply the `engineering-phase` skill, then load `references/plan.md` for detailed execution instructions.
+Load and apply the `mdgraph-loop` skill, then load `references/plan.md` for detailed instructions.
 
-Execute the **Plan** phase (includes PRD and planning):
+First, **Detect**: `mdgraph_search(status: "in_progress", tag: "agent-task")` to find active task. If none, ask user to run `/loop-init` first.
+
+Execute the **Plan** phase (PRD + planning):
 
 ```text
 Phase: Plan
-Goal: turn findings into decisions and a work graph with verification criteria
+Goal: turn findings into decisions and a work graph
 Writes: task note (## Decisions), plan.md (via mdgraph_update_note), progress.md
 ```
 
 ## PRD Step
 
-1. **Read findings**: `mdgraph_get_note(id: findings-id)` or read from task note's `## Context` wikilinks.
-2. **If multiple approaches exist**: use `socratic-question` Phase 2 (Deep Exploration) to surface trade-offs. Present as structured options.
-3. **If only one approach is viable**: state the approach and why alternatives don't apply.
-4. **Write decision record** into task note's `## Decisions` via `mdgraph_update_note(id: task-id, content: ...)`.
-5. **Maker/checker (conditional)**: If multiple approaches competed or stakes are high, spawn `@oracle` in a **separate session** as adversary. Skip checker when one approach is obvious.
+1. Read findings via `mdgraph_get_note(id: findings-id)` or task note's `## Context` wikilinks.
+2. If multiple approaches: use `socratic-question` Phase 2 to surface trade-offs.
+3. Write decision record into task note's `## Decisions` via `mdgraph_update_note(id: task-id)`.
+4. **Maker/checker (conditional)**: If stakes high, spawn `@oracle` adversary.
 
 ## Plan Step
 
-1. **Break work into tasks** based on PRD decisions.
-2. **Write plan note** via `mdgraph_update_note(id: plan-id, content: ...)`. Include:
-   - Ordered task list with dependencies
-   - Each task: description, files involved, verification criteria
-   - Risk areas flagged
-3. **Maker/checker (conditional)**: If plan involves multi-file risky changes, spawn `@oracle` in a **separate session** for dependency check. Skip for trivial single-file plans.
+1. Break work into tasks. Write plan note via `mdgraph_update_note(id: plan-id)`.
+2. **Maker/checker (conditional)**: If multi-file risky, spawn `@oracle` for dependency check.
+3. Update Phase Progress: Plan ✅. Auto-transition: `/loop-execute`.
 
-4. **Update Phase Progress**: Plan ✅ + date via `mdgraph_update_note(id: task-id)`
-
-5. **Auto-transition**: prompt `/phase-implement` (mandatory, no skip).
-
-Optional arguments (specific planning constraints, task priorities):
+Optional arguments (planning constraints, priorities):
 $ARGUMENTS

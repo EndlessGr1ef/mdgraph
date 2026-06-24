@@ -1,9 +1,9 @@
 ---
-name: engineering-phase-research
-description: Research phase — gather evidence via codegraph + mdgraph traversal. Load this when the user says /phase-research.
+name: mdgraph-loop-explore
+description: Explore phase — gather evidence via codegraph + mdgraph traversal. Load this when the user says /loop-explore.
 ---
 
-# Research Phase (`/phase-research`)
+# Explore Phase (`/loop-explore`)
 
 Gather evidence and write findings. Graph-aware: use `mdgraph_get_graph` to traverse from search hits and discover related decisions/concepts.
 
@@ -20,14 +20,14 @@ Gather evidence and write findings. Graph-aware: use `mdgraph_get_graph` to trav
 
 2. Write all findings into the findings note via `mdgraph_update_note(id: findings-id, content: ...)`. Include `[[wikilinks]]` to related notes discovered during graph traversal.
 
-3. **Maker/checker (conditional)**: If scope is large or unfamiliar, spawn `@oracle` in a **separate session** to validate research coverage:
+3. **Maker/checker (conditional)**: If scope is large or unfamiliar, spawn `@oracle` in a **separate session** to validate exploration coverage:
    - Prompt: "Review the findings note. Did we miss any subsystem? Are there related past decisions we didn't check? Is the evidence sufficient to proceed?"
    - If oracle surfaces gaps → feed back into findings note via `mdgraph_update_note`
    - If oracle confirms coverage → proceed
-   - Skip checker for single-file known-area research (see Sub-agent Token Budget)
+   - Skip checker for single-file known-area exploration (see Sub-agent Token Budget)
 
 4. When findings are substantive (at least 3 sections with code references, config values, or log excerpts; OR a section explicitly marked `## Definitive Finding` with a clear resolution statement):
-   - Update Phase Progress: Research ✅
+   - Update Phase Progress: Explore ✅
    - Auto-transition: prompt next applicable phase
 
 ## Output
