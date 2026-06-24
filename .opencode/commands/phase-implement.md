@@ -1,54 +1,37 @@
 ---
-description: "Phase 4/6: Implement — execute plan, verify tasks, reconcile results, update progress"
+description: "Phase 4/6: Implement — execute plan, dispatch specialist lanes, maker/checker review"
 ---
 
-Load and apply the `engineering-phase` skill before doing anything else.
+Load and apply the `engineering-phase` skill, then load `references/implement.md` for detailed execution instructions.
 
 Execute the **Implement** phase:
-
-Start with a short terminal-visible note:
 
 ```text
 Phase: Implement
 Goal: execute the approved plan and verify each task
-Writes: code files, progress.md, canonical task file
+Writes: code files, progress.md (via mdgraph_update_note)
 ```
 
-1. **Read current state**: Read the active agent task's `task_plan.md` + `## Decisions` from canonical task file. If Implement is pending but `task_plan.md` is missing or empty, stop and create a minimal plan from `## Decisions` before implementing.
+1. **Read current state**: `mdgraph_get_note(id: plan-id)` + task note `## Decisions`.
 
-2. **Choose implementation approach** based on task_plan.md:
-   - For each lane or task group, determine the right approach:
-     | Condition | Approach |
-     |-----------|----------|
-     | Single-file fix, < 20 lines | Direct implementation |
-     | Multi-step but sequential, < 5 files | Sequential: work through tasks one by one, verify each before proceeding |
-     | Complex, multi-file, risky | Direct sequential implementation with review checkpoints; use `deepwork` only if explicitly requested |
-   - Track each sub-task's status in `progress.md`
+2. **Choose execution mode** based on task complexity:
 
-3. **Implement work** following task_plan.md order:
-   - For each task: implement → verify against verification criteria → proceed to next
-   - Update `progress.md` with what was done, sub-task statuses, and any decisions made during implementation
-   - If a task fails verification: re-attempt (max 3), then ask user
+   | Condition | Mode |
+   |-----------|------|
+   | Single-file fix, < 20 lines | Direct implementation |
+   | Multi-step but sequential, < 5 files | Sequential: work through plan items one by one, verify each before proceeding |
+   | Complex, multi-file, risky | `deepwork` with oracle review gates |
 
-4. **Reconcile results/conflicts**:
-   - After all tasks complete, verify there are no cross-task conflicts
-   - Run full verification against task_plan criteria and decisions
-   - Update `progress.md` with reconciliation notes
+3. **Implement** following plan note order:
+   - After each plan item, log progress to the progress note via `mdgraph_update_note`
+   - **Maker/checker (always for non-trivial items)**: spawn `@oracle` in a **separate session** for inline review
+     - If oracle surfaces issues → feed back to `@fixer` for fixes, then re-review
+     - If oracle approves → proceed to next plan item
+     - Exception: trivial < 20-line single-file changes may self-review
 
-5. **Update Phase Progress**: Implement ✅ + date
-
-6. **Record phase exit checklist**: Write a brief checklist summary to `progress.md`.
-
-7. **Auto-transition**: prompt `/phase-verify` (mandatory, no skip):
-    ```
-    ✅ Implement complete → next: /phase-verify (run checks and review gates)
-    Updated: [files]
-    Key points: [implemented items, verification results, remaining risks]
-    Proceed? [yes/stop/abort]
-    ```
-   - **yes** → execute Verify phase inline
-   - **stop** → return to normal conversation (task stays `in_progress`)
-   - **abort** → set task status to `cancelled`, write reason to `progress.md`
+4. **After implementation**:
+   - If verification passes → update Phase Progress: Execution ✅ → auto-transition: prompt `/phase-verify`
+   - If verification fails → loop back within Execution (re-fix, re-verify). Max 3 attempts before asking user.
 
 Optional arguments (specific tasks to execute, verification focus):
 $ARGUMENTS

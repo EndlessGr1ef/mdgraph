@@ -1,34 +1,195 @@
 ---
 name: engineering-phase
-description: Phase-aware engineering workflow orchestration. Triggers on /phase-* commands. Manages the Brief→Research→Plan→Implement→Verify→Sink lifecycle with automatic phase transition prompting. Do NOT trigger for casual questions, quick lookups, or simple edits that don't need structured phases.
+description: Phase-aware engineering workflow orchestration. Triggers on /phase-* commands. Manages the Create Task→Research→PRD→Plan→Execution→QA→Sink lifecycle with automatic phase transition prompting. Do NOT trigger for casual questions, quick lookups, or simple edits that don't need structured phases.
 ---
 
 # Engineering Phase Workflow
 
-Orchestrates the 6-phase engineering workflow defined in the `knowledge-vault` skill. This skill handles phase transitions, deliverable validation, skill routing, and automatic next-phase prompting. It does NOT implement any phase itself — it delegates to existing skills.
+6-phase framework for daily engineering work (investigation, migration, implementation). Inspired by Matt Pocock's model, restructured with knowledge sinking as a conditional phase and adapted for mdgraph as the loop's persistent state spine.
 
-OpenCode slash commands for this workflow live in `.opencode/commands/phase-*.md`. Keep command prompts there, not inside this skill directory.
+This skill is the **index** — it defines the phase structure, routing, and shared rules. Each phase's detailed execution instructions are in `references/` and loaded on demand (progressive loading).
 
-## Phase definitions
+## The 6 Phases
 
-See `knowledge-vault` skill's "Engineering Workflow Phases" section for full definitions. Summary:
+```text
+Init → Research? → Plan → Implement → Verify → Sink?
+(Frame) (Explore)  (Plan) (Do)      (Check)  (Crystallize)
+```
 
-| Phase | Command | Skill | Deliverable | Transition condition |
-|-------|---------|-------|-------------|---------------------|
-| Brief | `/phase-brief` | `socratic-question` or inline framing fallback | Problem statement + task folder | Task confirmed + user agrees |
-| Research | `/phase-research` | `codegraph` + `tavily` + `mdgraph_search` | `findings.md` | findings has substantive content |
-| Plan | `/phase-plan` | `planning-with-files` for Medium/Large; direct for Small | `task_plan.md` with work graph | Plan written + user confirms |
-| Implement | `/phase-implement` | direct; `deepwork` only if explicitly requested | Code changes | Verification criteria met |
-| Verify | `/phase-verify` | direct checklist; external reviewer only if explicitly requested | Verification report | All checks pass or loop decision made |
-| Sink | `/phase-sink` | `mdgraph_create_note` | Vault note(s) or "no durable knowledge" | Note written + confirmed, or skip recorded |
+Research and Sink are marked with `?` because they are optional/conditional — Research can be skipped if the user already has evidence; Sink only runs when durable knowledge was produced.
 
-## Phase Progress initialization
+| Phase | Command | Purpose | Key Tool | Deliverable | Details |
+|-------|---------|---------|----------|-------------|---------|
+| 1. Init | `/phase-init` | Create/confirm task brief, create task note cluster | `socratic-question` or inline framing fallback; `mdgraph_create_note` | Problem statement + mdgraph task note cluster (4 notes) | [init.md](references/init.md) |
+| 2. Research | `/phase-research` | Gather evidence (optional, skippable) | `codegraph` + `tavily` + `mdgraph_search` + `mdgraph_get_graph` | Findings note via `mdgraph_update_note` | [research.md](references/research.md) |
+| 3. Plan | `/phase-plan` | Build work graph / lanes / dependencies / verification criteria | Direct planning; `planning-with-files` optional; `mdgraph_update_note` | Plan note via `mdgraph_update_note` | [plan.md](references/plan.md) |
+| 4. Implement | `/phase-implement` | Dispatch specialist lanes, implement, reconcile | `deepwork` or direct; `mdgraph_update_note` for progress | Code changes + progress note updates | [implement.md](references/implement.md) |
+| 5. Verify | `/phase-verify` | Run checks/review gates, loop on failure | Direct checklist; external reviewer optional; `mdgraph_update_note` | Verification report in progress note; task status → `review` | [verify.md](references/verify.md) |
+| 6. Sink | `/phase-sink` | Crystallize knowledge to vault (optional/conditional) | `mdgraph_create_note` + `mdgraph_update_note` for bidirectional links | Vault note(s) with bidirectional wikilinks or "no durable knowledge" | [sink.md](references/sink.md) |
 
-When Brief determines the work type, initialize `## Phase Progress` based on the routing table. Mark non-applicable phases as `N/A` upfront — do not list them as "pending".
+## Agent Task Creation (Init Phase)
 
-Phase tracking is workflow state, not formatting. Do not let generic Markdown formatters infer, reorder, or overwrite existing Phase Progress statuses. A formatter may insert a missing empty template, but only phase commands should update status values.
+Create one timestamped folder under `10_tasks/`:
 
-Example for **investigation** type (Brief → Research → Plan → Implement → Verify → Sink):
+```
+10_tasks/yyyymmdd_hhmmss_short-kebab-name/
+```
+
+Inside, create the canonical task record using the task slug without timestamp:
+
+```
+short-kebab-name.md
+```
+
+Example:
+
+```
+10_tasks/20260611_153000_fix-panel-drift/
+├── fix-panel-drift.md
+├── plan.md
+├── findings.md
+└── progress.md
+```
+
+### mdgraph Note Cluster
+
+Each task folder contains 4 mdgraph-indexed notes connected by wikilinks:
+
+- **Task note** (spine): `{slug}.md` — type: `agent_task`, status: `in_progress`
+  - The entry point for graph traversal
+  - Contains Goal, Scope, Phase Progress, Decisions, Result
+- **Findings note**: `findings.md` — type: `research`, status: `active`
+  - Contains `Task: [[task-id]]` wikilink back to spine
+- **Plan note**: `plan.md` — type: `agent_task`, status: `active`
+  - Contains `Task: [[task-id]]` wikilink back to spine
+- **Progress note**: `progress.md` — type: `agent_task`, status: `active`
+  - Contains `Task: [[task-id]]` wikilink back to spine
+
+Create all 4 notes via `mdgraph_create_note` in the Init phase. Update them via `mdgraph_update_note` in subsequent phases. The task note's `aliases` field should include the slug for short-form wikilink resolution (e.g., `[[fix-panel-drift]]`).
+
+### Canonical Task Shape
+
+```markdown
+---
+id: 10_tasks_yyyymmdd_hhmmss_short-kebab-name
+title: Task Title
+type: agent_task
+status: in_progress
+tags: [agent-task]
+aliases: []
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
+# Task Title
+
+## Goal
+
+## Scope
+
+## Context
+
+Findings: [[{findings-note-id}]]
+Plan: [[{plan-note-id}]]
+Progress: [[{progress-note-id}]]
+
+## Constraints
+
+## Success Criteria
+
+## Phase Progress
+
+| Phase | Status | Completed |
+|-------|--------|-----------|
+| Init | ✅ done | YYYY-MM-DD |
+| Research | ⬜ pending / N/A | - |
+| Plan | ⬜ pending / N/A | - |
+| Implement | ⬜ pending / N/A | - |
+| Verify | ⬜ pending | - |
+| Sink | ⬜ pending / N/A | - |
+
+## Progress
+
+## Decisions
+
+## Result
+
+Knowledge crystallized: [[{knowledge-note-id}]]
+
+## Follow-ups
+```
+
+Use `status: done` when complete, `status: cancelled` when intentionally stopped before completion, and `status: archived` only when historical and no longer active.
+
+`## Phase Progress` is workflow state. Generic formatters must not infer, reorder, or overwrite existing status values. At most, tooling may insert this template when the section is missing; phase commands own status updates.
+
+### When to Create the Note Cluster
+
+Always create all 4 notes in the cluster (task, findings, plan, progress) regardless of task complexity. The overhead of 3 extra `mdgraph_create_note` calls is negligible compared to the graph connectivity gained.
+
+If mdgraph MCP is unavailable, fall back to direct file writes and call `mdgraph_sync` when available.
+
+### Note Cluster Rules
+
+Each note in the cluster is an independent mdgraph node with its own id, type, status, and tags:
+
+- Deliverable notes (findings, plan, progress) always contain `Task: [[task-id]]` as their first content line
+- The task note links to all deliverables in `## Context` via wikilinks
+- Phase transitions update the task note via `mdgraph_update_note` (Phase Progress + status field)
+- The task note's `aliases` field includes the slug for short-form wikilink resolution
+
+Use `planning-with-files` if available for structured maintenance; otherwise update notes directly via `mdgraph_update_note`.
+
+### Resume Rule
+
+When resuming a task:
+
+1. `mdgraph_get_note(id: task-id)` — returns note body + 1-hop graph context
+2. Parse `## Phase Progress` from the note body to find the last completed phase
+3. Follow `graph.outlinks` to reach deliverable note ids
+4. `mdgraph_get_note(id: deliverable-id)` for each needed artifact
+5. If mdgraph MCP is unavailable, read files directly from the vault path
+
+Conflict resolution:
+1. Task note = authoritative index and summary
+2. Plan note = phase-level planning
+3. Findings note = evidence and investigation
+4. Progress note = chronological logs
+
+If notes disagree, preserve evidence in subordinate notes but update the task note so the next agent has a correct entry point.
+
+## Auto-transition protocol
+
+After every phase completes, the agent MUST:
+
+1. Update task note via `mdgraph_update_note`: update `## Phase Progress` (mark current phase ✅ done + date) and update `status` field when warranted (e.g., Implement → status stays `in_progress`, Verify → status → `review`, Sink → status → `done`). If mdgraph MCP is unavailable, write the file directly and call `mdgraph_sync` when available.
+2. Find the next applicable phase (first phase after current with status `⬜ pending`; skip `N/A` phases)
+3. Output the transition prompt:
+
+```text
+✅ [current phase] complete → next: /phase-[next-applicable-phase] ([purpose])
+Proceed? [yes/stop/abort]
+```
+
+Options:
+- **yes**: load and execute the next phase command's instructions inline
+- **stop**: stop phase flow, return to normal conversation (task remains `in_progress`)
+- **abort**: `mdgraph_update_note(id: task_id, status: "cancelled")`, write brief reason to progress note
+
+If the next phase is **skippable** (see skip conditions below), add a `skip` option:
+
+```text
+✅ [current phase] complete → next: /phase-[next-applicable-phase] ([purpose])
+Proceed? [yes/skip/stop/abort]
+```
+
+- **skip**: mark the next phase as `⏭️ skipped` in Phase Progress, advance to the one after, and prompt again
+
+If the next phase is **mandatory** (Implement, Verify), do NOT offer skip — only `yes/stop/abort`.
+
+### Phase Progress Table
+
+Initialize based on work type routing. Mark N/A phases upfront:
 
 ```markdown
 ## Phase Progress
@@ -43,225 +204,104 @@ Example for **investigation** type (Brief → Research → Plan → Implement �
 | Sink | ⬜ pending | - |
 ```
 
-Example for **review** type (Brief → Research → Verify → Sink):
+When resuming a task, read this table to determine current phase.
 
-```markdown
-## Phase Progress
+## Phase Orchestration (Progressive Loading)
 
-| Phase | Status | Completed |
+Each phase's detailed instructions are in a separate reference file. Load only the phase you need.
+
+| Phase | Reference File | When to Load |
+|-------|---------------|--------------|
+| 1. Init | [references/init.md](references/init.md) | When starting a new task (`/phase-init`) |
+| 2. Research | [references/research.md](references/research.md) | When gathering evidence (`/phase-research`) |
+| 3. Plan | [references/plan.md](references/plan.md) | When planning work (`/phase-plan` or `/phase-prd`) |
+| 4. Implement | [references/implement.md](references/implement.md) | When implementing code (`/phase-implement`) |
+| 5. Verify | [references/verify.md](references/verify.md) | When verifying changes (`/phase-verify`) |
+| 6. Sink | [references/sink.md](references/sink.md) | When crystallizing knowledge (`/phase-sink`) |
+
+**How to use**: When a phase command is triggered, load the corresponding reference file and execute its instructions. The index (this file) provides the shared rules (auto-transition, resume, routing) that apply to all phases.
+
+## Work Type Routing
+
+Not all tasks need all 6 phases. After Brief, select the shortest path:
+
+| Work type | Phase path |
+|-----------|-----------|
+| Investigation (bug/error/crash) | Brief → Research → Plan → Implement → Verify → Sink |
+| Migration / parity check | Brief → Research → Plan → Implement → Verify → Sink |
+| Feature implementation | Brief → Research → Plan → Implement → Verify → Sink |
+| Code review / impact analysis | Brief → Research → Verify → Sink |
+| Knowledge gap fill | Brief → Research → Sink |
+
+Work type detection keywords should be defined in project-level `AGENTS.md`. Default to full 6-phase path when no keywords match.
+
+Review and knowledge-gap paths do not enter Implement. Their Verify/Sink phases read the findings note, the task note `## Goal`, and any explicit review scope instead of requiring the plan note.
+
+## Skip Conditions
+
+| Phase | Can skip? | When |
+|-------|-----------|------|
+| Brief | No | Always needed |
+| Research | Yes | User already has all evidence |
+| Plan | No | Must plan before implementing (unless simple enough for direct execution) |
+| Implement | No | This IS the work |
+| Verify | No | Must verify before sinking |
+| Sink | Yes | No durable knowledge was produced |
+
+Plan can technically be collapsed into Implement for trivial tasks (1-2 lines, single file), but the phase table should still show it as skipped or handled.
+
+## Sink Rules (Phase 6)
+
+Optional/conditional phase. Evaluate whether durable reusable knowledge was produced:
+
+1. New reusable knowledge (concept/pattern/gotcha) → `30_knowledge/concepts/` or `30_knowledge/tools/` note
+2. Investigation findings worth referencing → `20_research/` note using original task timestamp
+3. Updated understanding of existing note → update via `mdgraph_update_note`
+4. Always add `tags` including the project/context tag
+5. Always include `Source: [[task-id]]` wikilink in the knowledge note content (this creates the bidirectional edge for graph traversal). Also add `source_task:` frontmatter field linking back to agent task folder path as a stable reference.
+6. After creating the knowledge note, update the task note: `mdgraph_update_note(id: task-id, content: ...)` — add `## Result` section with `Knowledge crystallized: [[knowledge-note-id]]`. Then `mdgraph_update_note(id: task-id, status: "done")`.
+7. If no durable knowledge was produced, record `"No durable knowledge produced"` in the progress note and skip writing
+8. If MDGraph tools fail, write file directly and call `mdgraph_sync` when available
+9. After writing, ask user: "Written to vault: [note path]. Is the content correct? Any adjustments needed?" Only mark Sink done after the user confirms, or after applying requested adjustments, or after recording the skip decision.
+
+## Skill Prerequisites and Fallbacks
+
+This workflow may benefit from external/global skills, but it must remain executable without them:
+
+| Optional dependency | Used for | Fallback |
+|---|---|---|
+| `socratic-question` | Problem framing in Brief | Ask concise inline clarification questions, then write the same Problem Statement |
+| `planning-with-files` | Structured plan, findings, progress note maintenance | Create and update those notes directly via `mdgraph_update_note` |
+| `deepwork` | Complex/risky implementation sessions | Use the orchestrator's normal plan/delegate/verify workflow with explicit review gates |
+| `adversarial-reviewer` | High-risk challenge review | Use the direct review checklist and route code review to an available reviewer/oracle when supported |
+| `@oracle` sub-agent | Maker/checker split across phases | Fall back to direct self-review checklist (see Sub-agent Token Budget below) |
+| `@explorer` sub-agent | Fast research recon | Orchestrator does codegraph + mdgraph_search directly |
+| `@fixer` sub-agent | Bounded implementation dispatch | Orchestrator implements directly |
+
+## Sub-agent Token Budget
+
+The maker/checker pattern splits "who writes" from "who checks" using separate sub-agent sessions. This improves quality but costs tokens and latency. Use threshold heuristics to decide when to split:
+
+| Phase | Split? | Threshold |
 |-------|--------|-----------|
-| Brief | ✅ done | 2026-06-16 |
-| Research | ⬜ pending | - |
-| Plan | N/A | - |
-| Implement | N/A | - |
-| Verify | ⬜ pending | - |
-| Sink | ⬜ pending | - |
-```
+| Research | Conditionally | Split when scope is large, unfamiliar, or multi-system. Skip for single-file known-area research. |
+| PRD | Conditionally | Split when multiple approaches compete or stakes are high. Skip when one approach is obvious. |
+| Plan | Conditionally | Split for multi-file risky changes. Skip for trivial single-file plans. |
+| Execution | Always | Code changes are quality-critical. Always spawn @oracle checker after @fixer implementation. Exception: trivial < 20-line single-file changes may self-review. |
+| QA | Always | Always use adversarial-reviewer or @oracle. No self-grading of code. (Direct review checklist is the fallback when sub-agents are unavailable, not a first-choice path.) |
 
-## Auto-transition protocol
+**Critical constraint**: The checker MUST be a separate session (different `task_id`) from the maker. Same session = inherited blind spots. The agent that wrote the code is not the one grading it.
 
-After every phase completes, the agent MUST:
+**When sub-agents are unavailable**: Fall back to a direct self-review checklist. Wait 1 turn between writing and reviewing if possible — temporal distance reduces blind spots even without session isolation.
 
-1. Update `## Phase Progress` in the canonical task file (mark current phase ✅ done + date)
-2. Find the next applicable phase (first phase after current with status `⬜ pending`; skip `N/A` phases)
-3. Output the transition prompt:
+## Socratic-Question Role
 
-```text
-✅ [current phase] complete → next: /phase-[next-applicable-phase] ([purpose])
-Proceed? [yes/stop/abort]
-```
+`socratic-question` serves one role in this framework:
 
-Options:
-- **yes**: load and execute the next phase command's instructions inline
-- **stop**: stop phase flow, return to normal conversation (task remains `in_progress`)
-- **abort**: mark task as cancelled, set canonical task status → `cancelled`, write brief reason to `progress.md`
+- **Brief phase**: deconstruct the problem — "Is this a timeout or a hang? What is the blast radius?"
 
-If the next phase is **skippable** (see skip conditions in knowledge-vault), add a `skip` option:
+Do NOT use `grill-me` or `grill-with-docs` in this framework.
 
-```text
-✅ [current phase] complete → next: /phase-[next-applicable-phase] ([purpose])
-Proceed? [yes/skip/stop/abort]
-```
+## OpenCode Shortcut
 
-- **skip**: mark the next phase as `⏭️ skipped` in Phase Progress, advance to the one after, and prompt again
-
-If the next phase is **mandatory** (Plan, Implement, Verify), do NOT offer skip — only `yes/stop/abort`.
-
-## Task scale
-
-- **Small**: single-file or low-risk change; direct planning is allowed.
-- **Medium**: multi-file or multi-step work; use the standard task files and phase feedback.
-- **Large**: cross-module, risky, architectural, migration, release, or persistent debugging work; use full task files, detailed evidence, and diagrams.
-
-For Medium and Large tasks, the agent MUST use the actual planning-with-files skill.
-
-Within engineering-phase, the active agent task folder is the planning workspace.
-
-Brief MUST classify the task scale and record it in the canonical task file's `## Context`.
-
-## Phase feedback contract
-
-At the start of every phase, output a short terminal-visible note:
-
-```text
-Phase: [Brief/Research/Plan/Implement/Verify/Sink]
-Goal: [what this phase will resolve]
-Writes: [files expected to change]
-```
-
-At the end of every phase, output a short terminal-visible summary before the transition prompt:
-
-```text
-✅ [Phase] complete
-Updated: [files]
-Key points: [1-3 concrete findings/decisions/results]
-Next: /phase-[next]
-```
-
-## Phase exit checklist
-
-Before marking any phase complete, verify:
-
-- [ ] Required files were updated.
-- [ ] Terminal-visible phase summary was shown.
-- [ ] Medium/Large outputs include concrete evidence, file paths, commands, or decisions.
-- [ ] Large tasks include at least one Mermaid diagram in `findings.md` or `task_plan.md`.
-- [ ] The next phase has enough input to proceed.
-
-Record the completed checklist or a brief checklist summary in `progress.md`.
-
-## Phase orchestration
-
-### 1. Brief (`/phase-brief`)
-
-1. Parse user description to identify work type hint:
-   - Check project-level `AGENTS.md` for project-specific keyword mappings
-   - If no project mapping exists, default to full 6-phase path
-
-2. Load `socratic-question` skill if available. Use Phase 1 (Problem Reframing) to deconstruct fuzzy descriptions. If unavailable or if the task is already clear, ask concise inline clarification questions or simply confirm.
-
-3. After convergence, output structured problem statement:
-   ```markdown
-   ## Problem Statement
-   - **Type**: [investigation | migration | implementation | review | knowledge-gap]
-   - **Scope**: [what systems/files/areas are involved]
-   - **Boundary**: [what's in scope, what's out of scope]
-   - **Key question**: [the one question that, if answered, resolves this]
-   ```
-
-4. Create agent task folder (following knowledge-vault's Agent task workflow):
-   - Timestamp: `date +%Y%m%d_%H%M%S`
-   - Folder: `<vault-root>/10_tasks/{timestamp}_{kebab-name}/`
-   - Files: `{kebab-name}.md`, `task_plan.md`, `findings.md`, `progress.md`
-   - Write problem statement into canonical task file's `## Goal`
-   - Include `## Scope`, `## Constraints`, `## Success Criteria`, `## Context`, `## Phase Progress`, `## Decisions`, `## Result`, and `## Follow-ups`
-   - Record task scale (`Small`, `Medium`, or `Large`) in `## Context`
-   - Initialize `## Phase Progress` table based on work type routing (mark N/A phases)
-
-5. Auto-transition: prompt next applicable phase (typically `/phase-research`)
-
-### 2. Research (`/phase-research`)
-
-1. Based on work type, choose exploration strategy:
-   - **Investigation**: codegraph trace (callers/callees) + log reading + vault search for similar past issues
-   - **Migration**: codegraph compare (source vs target) + vault search for migration notes
-   - **Implementation**: codegraph explore (existing system) + tavily (library docs if needed)
-   - **Review**: codegraph impact analysis + diff reading
-   - **Knowledge-gap**: mdgraph_search + tavily
-
-2. Write all findings into `findings.md`. For Medium/Large tasks, include concrete references. Large tasks must include at least one Mermaid diagram in `findings.md` or `task_plan.md`.
-
-3. When findings are substantive (at least 3 sections with code references, config values, or log excerpts; OR a section explicitly marked `## Definitive Finding` with a clear resolution statement):
-   - Update Phase Progress: Research ✅
-   - Auto-transition: prompt `/phase-plan` next
-
-### 3. Plan (`/phase-plan`)
-
-1. Based on Brief's problem statement and any Research findings, break work into tasks. For Medium and Large tasks, the agent MUST use the actual planning-with-files skill. For Small tasks, direct `task_plan.md` writing is allowed.
-2. Write `task_plan.md` with:
-   - Work graph: ordered task list with clear dependencies
-   - Lanes: parallel work tracks where possible
-   - Each task: description, files involved, dependencies, verification criteria
-   - Risk areas and complexity estimates flagged
-   - Mermaid diagram for Large tasks
-3. Update Phase Progress: Plan ✅
-4. Auto-transition: prompt `/phase-implement` (mandatory, no skip)
-
-### 4. Implement (`/phase-implement`)
-
-Choose implementation approach based on task complexity:
-
-| Condition | Approach |
-|-----------|----------|
-| Single-file fix, < 20 lines | Direct implementation |
-| Multi-step but sequential, < 5 files | Sequential: work through task_plan items one by one, verify each before proceeding |
-| Complex, multi-file, risky | Direct sequential implementation with review checkpoints; use `deepwork` only if explicitly requested |
-
-Track each sub-task and status in `progress.md`.
-
-After all tasks complete:
-- Reconcile cross-task conflicts
-- Run full verification against task_plan criteria
-- If verification passes → update Phase Progress: Implement ✅ → auto-transition: prompt `/phase-verify`
-- If verification fails → loop back within Implement (re-fix, re-verify). Max 3 attempts before asking user.
-
-### 5. Verify (`/phase-verify`)
-
-1. Review changes or findings against available phase inputs:
-   - If `task_plan.md` exists and Plan is applicable, verify every plan item.
-   - If Plan is N/A, verify against `findings.md`, `## Goal`, and the scope from Brief.
-   - For critical/risky changes → use a stricter direct checklist; use an external reviewer only if explicitly requested.
-   - For straightforward changes → direct review checklist:
-     - [ ] Changes or findings match the goal and decisions
-     - [ ] All applicable task_plan items are addressed, or Plan is N/A with a documented reason
-     - [ ] No regressions in touched areas
-     - [ ] Edge cases handled or noted as out of scope
-
-2. Record verification results in `progress.md`.
-
-3. If verification fails:
-   - Report issues clearly
-   - Offer to loop back to Plan (design/approach issue) or Implement (implementation bug)
-   - Do NOT auto-advance to Sink until verification passes
-
-4. Update Phase Progress: Verify ✅
-5. Auto-transition: prompt `/phase-sink`
-
-### 6. Sink (`/phase-sink`)
-
-**This phase is optional/conditional.** Only produce vault notes when durable reusable knowledge was created.
-
-1. Evaluate what knowledge was produced:
-   - New concept/pattern/gotcha → `30_knowledge/concepts/<kebab-name>.md`
-   - Investigation findings → `20_research/<original-task-timestamp>_<kebab-name>.md`
-   - Updated understanding → update existing vault note
-   - Project-specific knowledge → `30_knowledge/projects/<project>/<topic>.md`
-
-2. If durable knowledge exists, write the note directly using `mdgraph_create_note` or file write. If MDGraph tools fail, write the file directly and call `mdgraph_sync` when available. Include:
-   - Proper frontmatter (type, status, tags, created, updated)
-   - `source_task:` frontmatter field linking back to the agent task folder
-   - At least one tag for the project/context
-   - Wikilinks to related vault notes
-
-3. If no durable knowledge was produced, record `"No durable knowledge produced"` in `progress.md`.
-
-4. Ask user for confirmation if a note was written. After confirmation (or skip decision), update Phase Progress: Sink ✅
-
-5. Update canonical task status → `done`
-
-6. No auto-transition (workflow complete). Output summary:
-   ```
-   🏁 Task complete!
-   - Agent task: [task path] (status: done)
-   - Vault notes: [list of created/updated notes, or "none"]
-   - Key decisions: [summary from ## Decisions]
-   ```
-
-## Resume behavior
-
-When resuming a task (reading an existing agent task folder):
-1. Read the canonical task file first.
-2. Read `## Phase Progress` table to find the last completed phase.
-3. Resume from the next applicable phase (first `⬜ pending` after last ✅ done).
-4. If Phase Progress is missing, enter Brief phase to re-initialize.
-5. If phase deliverables are missing but marked done, re-enter that phase.
+OpenCode loads the phase commands from `.opencode/commands/phase-*.md`. The command files are the executable prompts; this skill remains the durable workflow definition.

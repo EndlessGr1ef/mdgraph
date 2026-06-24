@@ -1,52 +1,37 @@
 ---
-description: "Phase 2/6: Research — gather evidence via codegraph, tavily, vault search; write findings.md (optional, skippable)"
+description: "Phase 2/6: Research — gather evidence via codegraph, mdgraph traversal, tavily; write findings (optional, skippable)"
 ---
 
-Load and apply the `engineering-phase` skill before doing anything else.
+Load and apply the `engineering-phase` skill, then load `references/research.md` for detailed execution instructions.
 
 Execute the **Research** phase:
-
-Start with a short terminal-visible note:
 
 ```text
 Phase: Research
 Goal: gather evidence and write findings
-Writes: findings.md, progress.md, canonical task file
+Writes: findings.md (via mdgraph_update_note), progress.md
 ```
 
-1. **Read current task state**: Find the active agent task folder (most recent `10_tasks/` entry with status `in_progress`, or from conversation context). Read the canonical task file and `## Phase Progress`.
+1. **Read current task state**: Find the active agent task folder. `mdgraph_get_note(id: task-id)` → parse `## Phase Progress` and follow wikilinks to deliverable notes.
 
 2. **Choose exploration strategy** based on work type from `## Problem Statement`:
-   - **Investigation**: `codegraph` trace (callers/callees/impact) + log/config reading + `mdgraph_search` for similar past issues
-   - **Migration**: `codegraph` compare source vs target + `mdgraph_search` for migration notes + diff analysis
-   - **Implementation**: `codegraph` explore existing system + `tavily` for library docs if needed
-   - **Review**: `codegraph` impact analysis + diff reading + `mdgraph_search` for related decisions
-   - **Knowledge-gap**: `mdgraph_search` + `tavily` web research
+   - **Investigation**: codegraph trace (callers/callees) + log reading + `mdgraph_search` for similar past issues → `mdgraph_get_graph(id: hit.id, depth: 2, direction: "both")` for each hit → `mdgraph_search(tag: relevant-tag)` for concept discovery
+   - **Migration**: codegraph compare source vs target + `mdgraph_search` for migration notes → graph traversal from hits → `mdgraph_search(tag: relevant-tag)` for related migration patterns
+   - **Implementation**: codegraph explore existing system + tavily for library docs + `mdgraph_search` + `mdgraph_get_graph` for prior similar implementations → `mdgraph_search(tag: relevant-tag)` for related concepts
+   - **Review**: codegraph impact analysis + diff reading + `mdgraph_search(tag: project-tag)` → `mdgraph_get_graph` from hits
+   - **Knowledge-gap**: `mdgraph_search` + `mdgraph_get_graph(depth: 2)` + `mdgraph_search(tag: relevant-tag)` + tavily
 
-3. **Execute exploration**: Run searches in parallel where possible. Write ALL findings into `findings.md` in the task folder:
-    - Each finding: what was found, where, significance
-    - Evidence: code paths, config values, log patterns, vault references
-    - Open questions remaining
-    - For Medium/Large tasks: include concrete references
-    - For Large tasks: include at least one Mermaid diagram in `findings.md` or `task_plan.md`
+   **Maker (dispatch recon to @explorer)**: For large or unfamiliar scope, spawn `@explorer` (separate session) to gather findings in parallel. For small/known scope, do the recon directly.
 
-4. **Completion criteria**: findings.md has at least 3 sections with code references, config values, or log excerpts; OR contains a section explicitly marked `## Definitive Finding` with a clear resolution statement.
+3. **Write findings**: `mdgraph_update_note(id: findings-id, content: ...)`. Include `[[wikilinks]]` to related notes discovered during graph traversal.
 
-5. **Update Phase Progress**: Research ✅ + date
+4. **Maker/checker (conditional)**: If scope is large or unfamiliar, spawn `@oracle` in a **separate session** to validate research coverage. Skip checker for single-file known-area research.
 
-6. **Record phase exit checklist**: Write a brief checklist summary to `progress.md`.
+5. **Completion criteria**: findings.md has at least 3 sections with code references, config values, or log excerpts; OR contains `## Definitive Finding` with a clear resolution statement.
 
-7. **Auto-transition**: Find next applicable phase (first `⬜ pending` after Research) and prompt:
-    ```
-    ✅ Research complete → next: /phase-plan (build task plan)
-    Updated: [files]
-    Key points: [1-3 concrete findings]
-    Proceed? [yes/skip/stop/abort]
-    ```
-   - **yes** → execute Plan phase inline
-   - **skip** → only offered if next phase is skippable; mark as `⏭️ skipped`, prompt the one after
-   - **stop** → return to normal conversation (task stays `in_progress`)
-   - **abort** → set task status to `cancelled`, write reason to `progress.md`
+6. **Update Phase Progress**: Research ✅ + date via `mdgraph_update_note(id: task-id)`
+
+7. **Auto-transition**: prompt next applicable phase.
 
 Optional arguments (search queries, specific areas to focus on):
 $ARGUMENTS

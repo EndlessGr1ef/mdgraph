@@ -12,3 +12,7 @@ entities.json
 
 # Local config backups may contain secrets.
 .backup-opencode-config/
+
+# Magic Context (auto-generated session state)
+magic-context.jsonc
+.opencode/magic-context/
