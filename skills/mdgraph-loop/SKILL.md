@@ -5,9 +5,9 @@ description: Loop-driven engineering workflow. Triggers on /loop-* commands. Det
 
 # mdgraph-loop
 
-Goal-directed loop for engineering work (investigation, migration, implementation). Built on mdgraph as the persistent state spine — every task is a connected note cluster, every phase transition writes to the graph, and the loop converges on the goal.
+Use this skill only for `/loop-*` commands or explicit requests to run the mdgraph loop. For casual questions, quick lookups, or single small edits, do not enter the loop.
 
-This skill is the **index** — it defines the loop structure, routing, and shared rules. Each phase's detailed execution instructions are in `references/` and loaded on demand (progressive loading).
+When a `/loop-*` command runs, load this file first for shared rules, then load exactly one matching `references/<phase>.md` file. Do not preload all reference files.
 
 ## The Loop
 
@@ -18,7 +18,7 @@ Detect → Init → Explore? → Plan → Execute → Verify ──→ Crystalli
                        (goal not converged)
 ```
 
-Explore and Crystallize are marked with `?` because they are optional/conditional — Explore can be skipped if the user already has evidence; Crystallize only runs when durable knowledge was produced.
+Explore is marked with `?` because it can be skipped if the user already has evidence. Crystallize is mandatory as a closure phase, but it may complete without creating a knowledge note when no durable knowledge was produced.
 
 After Verify, if the goal is not converged (verification criteria not met), the loop backs up to Explore (need more evidence) or Execute (need to fix code). If converged, advance to Crystallize.
 
@@ -144,7 +144,7 @@ Use `status: done` when complete, `status: cancelled` when intentionally stopped
 
 ### When to Create the Note Cluster
 
-Always create all 4 notes in the cluster (task, findings, plan, progress) regardless of task complexity. The overhead of 3 extra `mdgraph_create_note` calls is negligible compared to the graph connectivity gained.
+Always create all 4 notes in the cluster: task, findings, plan, and progress.
 
 If mdgraph MCP is unavailable, fall back to direct file writes and call `mdgraph_sync` when available.
 
@@ -157,7 +157,7 @@ Each note in the cluster is an independent mdgraph node with its own id, type, s
 - Phase transitions update the task note via `mdgraph_update_note` (Phase Progress + status field)
 - The task note's `aliases` field includes the slug for short-form wikilink resolution
 
-Use `planning-with-files` if available for structured maintenance; otherwise update notes directly via `mdgraph_update_note`.
+Use `planning-with-files` only as a planning structure reference. Persist all task state through `mdgraph_create_note` / `mdgraph_update_note`; if mdgraph is unavailable, write Markdown directly and sync later.
 
 ## Auto-transition & Goal Convergence
 
@@ -182,6 +182,14 @@ Options:
 - **yes**: load and execute the next phase command's instructions inline
 - **stop**: stop loop, return to normal conversation (task remains `in_progress`)
 - **abort**: `mdgraph_update_note(id: task_id, status: "cancelled")`, write brief reason to progress note
+
+### OpenCode `question` Tool Requirement
+
+When running under OpenCode, any transition prompt with selectable options MUST be implemented with the `question` tool instead of a plain-text prompt. This includes `Proceed? [yes/stop/abort]`, `Proceed? [yes/skip/stop/abort]`, and Plan approval prompts.
+
+Use plain text only as a fallback when the `question` tool is unavailable.
+
+The Plan → Execute transition has an extra safety gate: the agent MUST ask for explicit user approval of the concrete plan before marking Plan ✅ or starting `/loop-execute`. If the plan contains unresolved decisions, use the `question` tool to resolve them first.
 
 If the next phase is **skippable** (see skip conditions below), add a `skip` option:
 
@@ -279,13 +287,15 @@ Review and knowledge-gap paths do not enter Execute. Their Verify/Crystallize ph
 | Plan | No | Must plan before executing (unless simple enough for direct execution) |
 | Execute | No | This IS the work |
 | Verify | No | Must verify before crystallizing |
-| Crystallize | Yes | No durable knowledge was produced |
+| Crystallize | No | Mandatory closure phase; may complete without creating a knowledge note |
 
 Plan can technically be collapsed into Execute for trivial tasks (1-2 lines, single file), but the phase table should still show it as skipped or handled.
 
 ## Crystallize Rules (Phase 6)
 
-Optional/conditional phase. Evaluate whether durable reusable knowledge was produced:
+Crystallize is mandatory as a closure phase. The agent must enter `/loop-crystallize` after Verify. If no durable knowledge was produced, record `No durable knowledge produced` in the progress note, mark Crystallize ✅, and complete the task without creating a knowledge note.
+
+Evaluate whether durable reusable knowledge was produced:
 
 1. New reusable knowledge (concept/pattern/gotcha) → `30_knowledge/concepts/` or `30_knowledge/tools/` note
 2. Investigation findings worth referencing → `20_research/` note using original task timestamp
@@ -293,13 +303,13 @@ Optional/conditional phase. Evaluate whether durable reusable knowledge was prod
 4. Always add `tags` including the project/context tag
 5. Always include `Source: [[task-id]]` wikilink in the knowledge note content (this creates the bidirectional edge for graph traversal). Also add `source_task:` frontmatter field linking back to agent task folder path as a stable reference.
 6. After creating the knowledge note, update the task note: `mdgraph_update_note(id: task-id, content: ...)` — add `## Result` section with `Knowledge crystallized: [[knowledge-note-id]]`. Then `mdgraph_update_note(id: task-id, status: "done")`.
-7. If no durable knowledge was produced, record `"No durable knowledge produced"` in the progress note and skip writing
+7. If no durable knowledge was produced, record `"No durable knowledge produced"` in the progress note and skip writing a knowledge note
 8. If MDGraph tools fail, write file directly and call `mdgraph_sync` when available
 9. After writing, ask user: "Written to vault: [note path]. Is the content correct? Any adjustments needed?" Only mark Crystallize done after the user confirms, or after applying requested adjustments, or after recording the skip decision.
 
 ## Skill Prerequisites and Fallbacks
 
-This workflow may benefit from external/global skills, but it must remain executable without them:
+Optional dependencies must not block the loop. If a listed skill or sub-agent is unavailable, use the fallback in the table.
 
 | Optional dependency | Used for | Fallback |
 |---|---|---|
@@ -313,7 +323,7 @@ This workflow may benefit from external/global skills, but it must remain execut
 
 ## Sub-agent Token Budget
 
-The maker/checker pattern splits "who writes" from "who checks" using separate sub-agent sessions. This improves quality but costs tokens and latency. Use threshold heuristics to decide when to split:
+Use these thresholds to decide whether to split maker/checker work into separate sub-agent sessions:
 
 | Phase | Split? | Threshold |
 |-------|--------|-----------|
@@ -325,7 +335,7 @@ The maker/checker pattern splits "who writes" from "who checks" using separate s
 
 **Critical constraint**: The checker MUST be a separate session (different `task_id`) from the maker. Same session = inherited blind spots. The agent that wrote the code is not the one grading it.
 
-**When sub-agents are unavailable**: Fall back to a direct self-review checklist. Wait 1 turn between writing and reviewing if possible — temporal distance reduces blind spots even without session isolation.
+**When sub-agents are unavailable**: Run a direct review checklist in a separate verification step after the implementation step, not interleaved with code writing.
 
 ## Socratic-Question Role
 
