@@ -1,29 +1,49 @@
 ---
 name: mdgraph-loop-verify
-description: Verify phase — run checks, goal convergence check, loop on failure. Load this when the user says /loop-verify.
+description: Verify phase — check success criteria, reconcile review findings, and document convergence.
 ---
 
 # Verify Phase (`/loop-verify`)
 
-Run checks and decide if goal has converged.
+Check the work against the task goal and success criteria.
 
-## Steps
+## 1. Review checklist
 
-1. Review code against PRD decisions and plan note:
-   - Critical/risky → `adversarial-reviewer` skill
-   - Straightforward → direct checklist
+Review the relevant artifact against:
 
-2. **Oracle reconciliation** (when adversarial-reviewer used): spawn `@oracle` to reconcile findings. If actionable issues → loop to Execute.
+- task goal
+- implementation for execution routes
+- findings, diff, and impact scope for review routes
+- plan and PRD decisions when Plan was applicable
+- constraints
+- success criteria
 
-3. **Goal convergence check**: Does output meet `## Success Criteria`?
-   - Not converged → loop back to Explore (more evidence) or Execute (fix code)
-   - Converged → proceed to Crystallize
+## 2. Review depth
 
-4. Record results in progress note. Update task status → `review`.
+Use the shared Subagent Policy:
 
-5. Update Phase Progress: Verify ✅
-6. Auto-transition: `/loop-crystallize` (mandatory)
+- adversarial review for risky work
+- direct checklist for straightforward work
 
-## Output
+## 3. Success criteria mapping
 
-Verification report; task status → `review`
+Map each check to a success criterion and record the result.
+
+## 4. Convergence evidence report
+
+Write the verification report into `progress.md` under `## Verification`; copy only the convergence summary to the task note if needed. Include:
+
+- checks run
+- evidence observed
+- open gaps
+- convergence decision: `yes` or `no`
+- if `no`, the required loopback: Explore for missing evidence or Execute for code fixes
+- residual risks
+
+If the work is not converged, record the blocking gaps, keep Verify pending, and do not mark Verify `✅ done`.
+
+If the work is converged, update the task status to `review` before closing Verify so `/loop-crystallize` can resume the handoff.
+
+## 5. Close
+
+Close using the shared Close Phase Protocol only when convergence is `yes`. When convergence is `no`, prompt the loopback phase without closing Verify.

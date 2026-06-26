@@ -1,30 +1,40 @@
 ---
 name: mdgraph-loop-execute
-description: Execute phase — implement code changes with maker/checker. Load this when the user says /loop-execute.
+description: Execute phase — implement the approved plan and log progress.
 ---
 
 # Execute Phase (`/loop-execute`)
 
-Implement code changes, log progress.
+Implement the approved plan and keep the progress note current.
 
-## Steps
+## 1. Choose mode
 
-1. Choose mode by complexity:
+Pick the lightest mode that fits the work:
 
-   | Condition | Mode |
-   |-----------|------|
-   | Single-file, < 20 lines | Direct |
-   | Multi-step, < 5 files | Sequential, verify each before next |
-   | Complex, multi-file, risky | `deepwork` with oracle review gates |
+- direct edits for tiny bounded changes
+- sequential edits for small multi-step work
+- deepwork for complex or risky changes
 
-2. After each plan item, log progress via `mdgraph_update_note`.
+## 2. Load state
 
-3. **Maker/checker (always)**: Spawn `@oracle` in separate session for inline review. Exception: < 20-line changes may self-review.
+Read the task note, the plan note, and the progress note before editing.
 
-4. After implementation:
-   - Pass → Phase Progress: Execute ✅ → `/loop-verify`
-   - Fail → loop back (re-fix, re-verify). Max 3 attempts.
+## 3. Execute tasks
 
-## Output
+Work through the ordered plan items and log meaningful progress after each step.
 
-Code changes + progress note updates
+## 4. Failed attempt behavior
+
+If a step fails:
+
+- record the failure in the progress note
+- adjust the approach before retrying
+- do not repeat the same failed action immediately
+
+## 5. Review policy
+
+Apply the shared Subagent Policy for risky or multi-file work.
+
+## 6. Close
+
+Close using the shared Close Phase Protocol.

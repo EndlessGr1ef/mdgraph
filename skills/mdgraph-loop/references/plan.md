@@ -1,59 +1,60 @@
 ---
 name: mdgraph-loop-plan
-description: Plan phase — planning decisions first, then PRD + task breakdown. Load this when the user says /loop-plan.
+description: Plan phase — confirm decisions, write the PRD record, and break work into tasks.
 ---
 
 # Plan Phase (`/loop-plan`)
 
-Three sequential steps: Plan (decide + confirm) → PRD (document) → Task Breakdown (commit).
+Turn findings into confirmed decisions and an actionable plan.
 
-## Plan Step
+## 1. Requirement review
 
-1. Review findings note from Explore phase (via `mdgraph_get_note(id: findings-id)` or task note's `## Context` wikilinks).
+Review the task goal, constraints, success criteria, and findings. Confirm:
 
-2. Run Requirement Review:
-   - What is the user's actual goal, not just the requested implementation?
-   - What assumptions would be risky to make silently?
-   - What constraints are fixed: data safety, compatibility, UX, performance, dependencies, timeline?
-   - What could go wrong if we execute the obvious plan?
-   - What does success look like in verifiable terms?
-   - Which decisions need user confirmation before code execution?
+- the real user goal
+- risky assumptions
+- hard constraints
+- available approaches
+- what must be true before implementation
 
-3. If Requirement Review exposes ambiguity, hidden requirements, multiple viable approaches, or high-impact trade-offs:
-   - Use `socratic-question` Phase 2 only when deeper exploration is needed.
-   - Use the OpenCode `question` tool to resolve concrete user decisions.
+## 2. Decision confirmation
 
-4. Record confirmed decisions.
+If there are unresolved decisions, use the OpenCode `question` tool or a concise inline prompt to confirm them.
 
-5. **Hard stop**: Do not continue to PRD Step until all execution-affecting decisions are either confirmed by the user via the `question` tool or documented as safe, reversible, low-impact assumptions.
+## 3. PRD / decision record
 
-## PRD Step
+Write the full decision record into `plan.md`, and copy the confirmed decisions summary to the task note `## Decisions`. Include:
 
-1. Write the PRD / decision record from existing context only:
-   - Findings summary
-   - Confirmed user decisions from Plan Step
-   - Chosen approach
-   - Rejected alternatives and why
-   - Scope and non-goals
-   - Success criteria
-2. Do not ask new questions in PRD Step unless a contradiction is discovered.
-3. If a contradiction is discovered, stop and return to Plan Step.
+- findings summary
+- confirmed decisions
+- chosen approach
+- rejected alternatives
+- scope and non-goals
+- success criteria
 
-## Task Breakdown Step
+## 4. Task breakdown
 
-1. Based on PRD decisions, break work into ordered tasks.
-2. Write plan note via `mdgraph_update_note(id: plan-id, content: ...)`:
-   - Ordered task list with dependencies
-   - Each task: description, files involved, verification criteria
-   - Risk areas flagged
-3. **Maker/checker (conditional)**: If multi-file risky changes, spawn `@oracle` for dependency check. Skip for trivial plans.
-4. Present the final plan summary and call the OpenCode `question` tool:
-   - `Approve and execute`
-   - `Revise plan`
-5. Only after approval: update Phase Progress: Plan ✅. Auto-transition: `/loop-execute`.
+Write the plan note with:
 
-**Hard stop**: Do not mark Plan ✅ or enter `/loop-execute` until the user approves the final plan.
+- ordered tasks
+- dependencies
+- files involved
+- verification criteria
+- risk areas
 
-## Output
+Apply the shared Subagent Policy when the plan is broad, high-risk, or has competing approaches.
 
-Plan note via `mdgraph_update_note`
+## 5. Approval gate
+
+The concrete plan must be approved before Execute. This approval gate replaces the generic Close Phase transition prompt. Use the OpenCode `question` tool with these options:
+
+- `Approve and execute`
+- `Approve and stop`
+- `Revise plan`
+- `Abort`
+
+Do not mark Plan `✅ done` or enter Execute until the user chooses `Approve and execute`. If the user chooses `Approve and stop`, mark Plan `✅ done` and stop without entering Execute.
+
+## 6. Close
+
+Close using the shared Close Phase Protocol.

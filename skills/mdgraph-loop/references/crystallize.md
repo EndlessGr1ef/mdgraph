@@ -1,30 +1,43 @@
 ---
 name: mdgraph-loop-crystallize
-description: Crystallize phase — persist knowledge to vault with bidirectional wikilinks. Load this when the user says /loop-crystallize.
+description: Crystallize phase — decide whether durable knowledge should be written and finish the task.
 ---
 
 # Crystallize Phase (`/loop-crystallize`)
 
-**Mandatory phase.** Persist durable knowledge into the vault.
+Persist durable knowledge if it exists, or record that none was produced.
 
-## Steps
+## 1. Knowledge decision tree
 
-1. Evaluate what knowledge was produced:
-   - New concept/pattern/gotcha → `30_knowledge/concepts/`
-   - Investigation findings → `20_research/`
-   - Updated understanding → update existing vault note
-   - Project-specific → `30_knowledge/projects/`
+Decide whether the work produced:
 
-2. Write knowledge note via `mdgraph_create_note`. Content MUST include `Source: [[task-id]]` wikilink. Include proper frontmatter, tags, and `source_task:` field.
+- a reusable concept, pattern, or gotcha
+- investigation findings worth preserving
+- an update to an existing note
+- no durable knowledge
 
-3. Update task note: `mdgraph_update_note(id: task-id, content: ...)` — add `## Result` with `Knowledge crystallized: [[knowledge-id]]`.
+## 2. Durable knowledge path
 
-4. Ask user for confirmation.
+If knowledge exists:
 
-5. Update Phase Progress: Crystallize ✅. `mdgraph_update_note(id: task-id, status: "done")`.
+- create or update the vault note
+- include `Source: [[task-id]]`
+- add proper frontmatter and tags
+- add a stable `source_task:` reference when useful
+- update the task note `## Result` with `Knowledge crystallized: [[knowledge-note-id]]`
 
-6. No auto-transition. Output summary.
+## 3. No knowledge path
 
-## Output
+If no durable knowledge exists:
 
-Vault note(s) with bidirectional wikilinks
+- record `No durable knowledge produced` in the progress note
+- do not create a knowledge note
+- update the task note `## Result` with the no-knowledge conclusion
+
+## 4. User confirmation
+
+Ask the user to confirm the vault note content when one is written or updated, and apply requested adjustments before marking the phase done.
+
+## 5. Finish
+
+Mark Crystallize `✅ done`, set task status to `done`, and output the final summary. Crystallize has no outgoing transition.

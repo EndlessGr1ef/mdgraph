@@ -1,63 +1,100 @@
 ---
 name: mdgraph-loop-init
-description: Init phase — create task, create mdgraph note cluster, scope work. Load this when the user says /loop-init or starts a new engineering task.
+description: Init phase — create the task cluster, classify the route, and set initial phase progress.
 ---
 
 # Init Phase (`/loop-init`)
 
-Create the task spine, scope the work, and launch the mdgraph note cluster.
+Create the task spine, classify the work, and initialize the note cluster.
 
-## Steps
+## 1. Problem framing
 
-1. Parse user description to identify work type hint:
-   - Check project-level `AGENTS.md` for project-specific keyword mappings
-   - If no project mapping exists, default to full loop path
+- Read the user request.
+- Check project-level `AGENTS.md` for any work-type keyword hints.
+- If the request is unclear, use `socratic-question` for reframing; otherwise confirm the scope briefly.
+- Decide the route before creating notes.
 
-2. Load `socratic-question` skill. Use Phase 1 (Problem Reframing) to deconstruct the user's description.
+## 2. Canonical task record
 
-3. After convergence, output structured problem statement:
-   ```markdown
-   ## Problem Statement
-   - **Type**: [investigation | migration | implementation | review | knowledge-gap]
-   - **Scope**: [what systems/files/areas are involved]
-   - **Boundary**: [what's in scope, what's out of scope]
-   - **Key question**: [the one question that, if answered, resolves this]
-   ```
+Create one timestamped task folder under `10_tasks/` and create these notes inside it:
 
-4. Create task note cluster via mdgraph (4 indexed notes):
+- `slug.md` — task spine
+- `findings.md`
+- `plan.md`
+- `progress.md`
 
-   a. **Task note** (spine): `mdgraph_create_note`
-      - path: `10_tasks/{timestamp}_{slug}/{slug}.md`
-      - type: `agent_task`, status: `in_progress`
-      - tags: `[agent-task, ...context-tags]`
-      - content: Goal + Scope + Context + Phase Progress + Success Criteria
+Create the task note as the canonical record below.
 
-   b. **Findings note**: `mdgraph_create_note`
-      - path: `10_tasks/{timestamp}_{slug}/findings.md`
-      - type: `research`, status: `active`
-      - tags: `[findings, ...context-tags]`
-      - content: `Task: [[{task-id}]]` + `(Awaiting explore phase)`
+```markdown
+---
+id: 10_tasks_yyyymmdd_hhmmss_short-kebab-name
+title: Task Title
+type: agent_task
+status: in_progress
+tags: [agent-task]
+aliases: [short-kebab-name]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
 
-   c. **Plan note**: `mdgraph_create_note`
-      - path: `10_tasks/{timestamp}_{slug}/plan.md`
-      - type: `agent_task`, status: `active`
-      - tags: `[plan]`
-      - content: `Task: [[{task-id}]]` + `(Awaiting plan phase)`
+# Task Title
 
-   d. **Progress note**: `mdgraph_create_note`
-      - path: `10_tasks/{timestamp}_{slug}/progress.md`
-      - type: `agent_task`, status: `active`
-      - tags: `[progress]`
-      - content: `Task: [[{task-id}]]` + `## Session Log`
+## Goal
 
-   e. Discover related work: `mdgraph_search(query: {keywords}, tag: "agent-task", status: "in_progress")`
+## Scope
 
-   f. Add wikilinks to discovered related tasks in the task note's `## Context` section via `mdgraph_update_note`. Also add the task slug as an `aliases` field on the task note so `[[slug]]` resolves.
+## Context
 
-   If mdgraph MCP is unavailable, fall back to direct file writes and call `mdgraph_sync` when available.
+Findings: [[{findings-note-id}]]
+Plan: [[{plan-note-id}]]
+Progress: [[{progress-note-id}]]
 
-5. Auto-transition: prompt next applicable phase (typically `/loop-explore`)
+## Constraints
 
-## Output
+## Success Criteria
 
-Problem statement + mdgraph task note cluster (4 notes)
+## Phase Progress
+
+| Phase | Status | Completed |
+|-------|--------|-----------|
+| Init | ✅ done | YYYY-MM-DD |
+| Explore | {⬜ pending or N/A} | - |
+| Plan | {⬜ pending or N/A} | - |
+| Execute | {⬜ pending or N/A} | - |
+| Verify | {⬜ pending or N/A} | - |
+| Crystallize | ⬜ pending | - |
+
+## Progress
+
+## Decisions
+
+## Result
+
+## Follow-ups
+```
+
+## 3. Note cluster creation
+
+- Task note: `type: agent_task`, `status: in_progress`
+- Findings note: `type: research`, `status: active`
+- Plan note: `type: agent_task`, `status: active`
+- Progress note: `type: agent_task`, `status: active`
+- Link every deliverable back to the task note with `Task: [[task-id]]`.
+- Add related task wikilinks to `## Context` when discovered.
+- Add the slug to `aliases` so `[[slug]]` resolves.
+
+## 4. Initial phase progress
+
+- Mark phases that are not in the route as `N/A`.
+- Mark phases in the route as `⬜ pending`.
+- Mark Init as `✅ done`.
+- Leave Crystallize as `⬜ pending` because it is always applicable.
+- Do not write combined placeholder values such as `⬜ pending / N/A` into the real task note; choose exactly one allowed status per phase.
+
+## 5. Related task discovery
+
+Search for related active tasks and reuse existing context when useful. Add only relevant links, not broad dumps.
+
+## 6. Close
+
+Close using the shared Close Phase Protocol.
