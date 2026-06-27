@@ -7,21 +7,25 @@ description: Execute phase — implement the approved plan and log progress.
 
 Implement the approved plan and keep the progress note current.
 
-## 1. Choose mode
+## 1. Always delegate
 
-Pick the lightest mode that fits the work:
+The main agent never writes code. Spawn a subagent for every implementation unit:
 
-- direct edits for tiny bounded changes
-- sequential edits for small multi-step work
-- deepwork for complex or risky changes
+- Single file change: `@fixer`
+- Multiple files: `task` (background) for parallel writes or `deepwork` for complex work
+- Context gathering: `@explorer`
+
+While subagents write, the main agent reads ahead, updates progress, or reviews completed output.
 
 ## 2. Load state
 
-Read the task note, the plan note, and the progress note before editing.
+Read the task note, the plan note, and the progress note before starting.
 
 ## 3. Execute tasks
 
-Work through the ordered plan items and log meaningful progress after each step.
+Work through the ordered plan items. Log meaningful progress after each step.
+
+Keep the main agent's context on orchestration and review; push implementation details into subagents.
 
 ## 4. Failed attempt behavior
 
@@ -33,7 +37,7 @@ If a step fails:
 
 ## 5. Review policy
 
-Apply the shared Subagent Policy for risky or multi-file work.
+Apply the shared Subagent Policy for every non-trivial change. When using subagent delegation, run a separate review pass (adversarial or checklist) before closing.
 
 ## 6. Close
 

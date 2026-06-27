@@ -5,6 +5,16 @@ description: Loop-driven engineering workflow for /loop-* commands.
 
 # mdgraph-loop
 
+## 0. Orchestration Principle
+
+**The main agent never touches code directly.** Its job is to plan, orchestrate, review, and persist state. All implementation work — every file write, every edit, every refactor — is delegated to subagents (`@fixer`, `task`, `deepwork`). The main agent:
+- Reads context and plans the work
+- Spawns subagents for each implementation unit
+- Reviews subagent output and updates task state
+- Persists progress after each meaningful step
+
+This applies to every phase that touches the filesystem. If you are the main agent and you find yourself about to use `edit` or `write`, stop and spawn a subagent instead.
+
 ## 1. Trigger and Loading
 
 Use this skill only for `/loop-*` commands or an explicit request to run the mdgraph loop. Load this file first, run Entry / Resume Protocol, then load exactly one reference file for the resolved phase. Do not preload all references.
@@ -65,7 +75,12 @@ Deliverable notes (findings, plan, progress, knowledge) are linked artifacts, no
 4. If exactly one task spine exists, load the task note first, then its linked deliverables.
 5. Resume at the first applicable `⬜ pending` phase in route order.
 6. If multiple task spines exist, ask which one to resume.
-7. If none exist, ask the user to start with `/loop-init`.
+7. If none exist, fall back to context-based task discovery:
+   a. Extract task-relevant keywords from the conversation context (user messages, `$ARGUMENTS`, recent topics).
+   b. Search mdgraph for `tag: "agent-task"` matching those keywords, **regardless of status**. Filter to task spines.
+   c. If any task spines are found, present them and ask the user which to resume/reopen.
+   d. If none found, check whether the conversation clearly describes an untracked task (e.g., recent work was done but never recorded as a task). If yes, explain: no formal task exists, offer to start `/loop-init` with context pre-filled.
+   e. Only if no task context is discernible at all, ask the user to start with `/loop-init`.
 8. If mdgraph MCP is unavailable, read the Markdown files directly from the vault and sync later.
 
 ## 5. Shared Persistence Rules
