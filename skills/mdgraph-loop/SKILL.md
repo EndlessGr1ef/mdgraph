@@ -107,6 +107,17 @@ The close protocol owns phase completion and transition:
 - If the current phase is not Crystallize and no later applicable phase exists, enter Crystallize.
 - Emit the next-step prompt with `yes`, `stop`, and `abort`; add `skip` only for an applicable phase that may be skipped.
 - Under OpenCode, use the `question` tool for transition prompts and Execute confirmation prompts; use plain text only when the tool is unavailable.
+- If a generic transition prompt is used, wait for the user to choose `yes` (or an allowed `skip`) before loading the next phase reference; do not load any reference on `stop` or `abort`.
+- After the next phase is accepted or otherwise resolved, load exactly one reference file for that resolved phase before any phase-specific gate or phase work begins.
+- For Execute, load `references/execute.md` before presenting or running its mandatory confirmation gate; reading that reference does not authorize implementation, and implementation still waits for Execute confirmation.
+- Reference mapping for the resolved phase is explicit:
+  - Init → `references/init.md`
+  - Explore → `references/explore.md`
+  - Plan → `references/plan.md`
+  - Execute → `references/execute.md`
+  - Verify → `references/verify.md`
+  - Crystallize → `references/crystallize.md`
+- This applies to loopbacks too (for example, Verify → Explore or Verify → Execute); do not preload all references.
 
 Phase-specific gates are the only extra rules references should add:
 
