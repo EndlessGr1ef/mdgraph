@@ -44,16 +44,11 @@ Write the plan note with:
 
 Apply the shared Subagent Policy when the plan is broad, high-risk, or has competing approaches.
 
-## 5. Approval gate
+## 5. Auto-approve
 
-The concrete plan must be approved before Execute. This approval gate replaces the generic Close Phase transition prompt. Use the OpenCode `question` tool with these options:
+If all decisions are clear and the plan is sound, auto-approve: mark Plan `✅ done` and proceed directly to Execute. No user confirmation is needed at this stage.
 
-- `Approve and execute`
-- `Approve and stop`
-- `Revise plan`
-- `Abort`
-
-Do not mark Plan `✅ done` or enter Execute until the user chooses `Approve and execute`. If the user chooses `Approve and stop`, mark Plan `✅ done` and stop without entering Execute.
+Only reach out to the user if the task requirements or approach are fundamentally ambiguous — use a single concise question, then proceed.
 
 ## 6. Close
 

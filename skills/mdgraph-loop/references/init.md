@@ -11,7 +11,7 @@ Create the task spine, classify the work, and initialize the note cluster.
 
 - Read the user request.
 - Check project-level `AGENTS.md` for any work-type keyword hints.
-- If the request is unclear, use `socratic-question` for reframing; otherwise confirm the scope briefly.
+- If the request is unclear, use `socratic-question` for reframing to resolve ambiguity. Otherwise proceed without confirmation.
 - Decide the route before creating notes.
 
 ## 2. Canonical task record

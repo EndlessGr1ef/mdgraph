@@ -69,19 +69,21 @@ Deliverable notes (findings, plan, progress, knowledge) are linked artifacts, no
 
 ## 4. Entry / Resume Protocol
 
-1. `/loop-init` starts a new task unless the user explicitly asks to resume an existing one.
-2. Other `/loop-*` commands detect resumable tasks by searching `tag: "agent-task"` with status `in_progress`; if none are found, also check status `review` so Verify → Crystallize handoffs remain resumable.
-3. Filter search hits to task spines only: exclude `findings.md`, `plan.md`, `task_plan.md`, and `progress.md`; prefer notes containing `## Phase Progress`.
-4. If exactly one task spine exists, load the task note first, then its linked deliverables.
-5. Resume at the first applicable `⬜ pending` phase in route order.
-6. If multiple task spines exist, ask which one to resume.
-7. If none exist, fall back to context-based task discovery:
-   a. Extract task-relevant keywords from the conversation context (user messages, `$ARGUMENTS`, recent topics).
-   b. Search mdgraph for `tag: "agent-task"` matching those keywords, **regardless of status**. Filter to task spines.
-   c. If any task spines are found, present them and ask the user which to resume/reopen.
-   d. If none found, check whether the conversation clearly describes an untracked task (e.g., recent work was done but never recorded as a task). If yes, explain: no formal task exists, offer to start `/loop-init` with context pre-filled.
-   e. Only if no task context is discernible at all, ask the user to start with `/loop-init`.
-8. If mdgraph MCP is unavailable, read the Markdown files directly from the vault and sync later.
+`/loop-init` always starts a new task (or explicitly resumes one).
+`/loop-*` commands follow this context-first flow:
+
+1. **Judge intent from conversation context.** Look at user messages, `$ARGUMENTS`, and session history: is the user describing ongoing work, or do they want something new? If clear, proceed to step 2. If unclear, skip to step 4.
+
+2. **If continuing existing work** → search mdgraph for `tag: "agent-task"` with status `in_progress`; if none, also check `review`. Filter to task spines (exclude `findings.md`, `plan.md`, `task_plan.md`, `progress.md`; prefer notes with `## Phase Progress`).
+   - Exactly one spine found → load task note + deliverables, resume at first `⬜ pending` phase.
+   - Multiple spines found → ask which one to resume.
+   - None found → fall back to context-based search: extract keywords from context, search `tag: "agent-task"` regardless of status. If still none, explain and offer `/loop-init` with context pre-filled.
+
+3. **If starting something new** → skip search entirely. Route to `/loop-init` and pre-fill the task from conversation context.
+
+4. **If intent is unclear** → route to `/loop-init` with context pre-filled. The user will clarify what they want.
+
+5. If mdgraph MCP is unavailable, read the Markdown files directly from the vault and sync later.
 
 ## 5. Shared Persistence Rules
 
@@ -104,12 +106,12 @@ The close protocol owns phase completion and transition:
 - Select the next applicable phase in route order.
 - If the current phase is not Crystallize and no later applicable phase exists, enter Crystallize.
 - Emit the next-step prompt with `yes`, `stop`, and `abort`; add `skip` only for an applicable phase that may be skipped.
-- Under OpenCode, use the `question` tool for transition prompts and Plan approval prompts; use plain text only when the tool is unavailable.
+- Under OpenCode, use the `question` tool for transition prompts and Execute confirmation prompts; use plain text only when the tool is unavailable.
 
 Phase-specific gates are the only extra rules references should add:
 
-- Plan needs explicit approval before Execute.
-- For Plan, the approval gate replaces the generic transition prompt.
+- Execute has a mandatory confirmation gate before any implementation starts.
+- For Execute, the confirmation gate replaces the generic transition prompt from Plan.
 - Crystallize is the final task-completion step and has no outgoing transition.
 
 ## 7. Subagent Policy
