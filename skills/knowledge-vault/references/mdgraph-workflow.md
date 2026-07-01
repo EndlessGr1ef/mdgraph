@@ -57,6 +57,6 @@ yyyymmdd_hhmmss_short-kebab-name.md
 
 - Keep the existing `id` unless the user explicitly requests an ID migration.
 - Update the `updated` date.
-- Preserve useful existing sections; append or revise only what is needed.
+- Preserve all existing sections unless the user asks to remove or restructure them; append new material under the most relevant existing heading.
 - Avoid broad reorganizations unless requested.
-- If the update comes from a coding session, prefer adding a short decision/progress entry rather than rewriting the entire note.
+- If the update comes from a coding session, append one dated bullet containing: decision/change, evidence link, and current status.

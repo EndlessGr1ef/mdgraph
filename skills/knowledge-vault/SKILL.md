@@ -64,4 +64,4 @@ Do **not** use this skill when:
 |---|---|
 | Vault folder structure, naming, and organization | `obsidian-markdown` for Obsidian-specific syntax |
 | Creating/updating/searching vault notes via MDGraph | Direct codebase work that doesn't touch the vault |
-| Folder/frontmatter rules for task records | `engineering-phase` for workflow orchestration and task shape |
+| Folder/frontmatter rules for task records | `mdgraph-loop` for loop-driven engineering workflow state |

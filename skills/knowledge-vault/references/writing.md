@@ -2,10 +2,10 @@
 
 ## General Rules
 
-- Write concise Markdown with clear headings.
+- Use one `#` title, then `##` section headings; keep generated paragraphs to 1–5 lines and omit filler introductions.
 - Preserve user-owned content; do not overwrite existing Markdown unless the task is explicitly an update.
 - Prefer wikilinks for relationships: `[[mdgraph]]`, `[[local-first]]`.
-- Keep generated notes source-grounded. For research notes, include sources or enough provenance to recover them.
+- For research notes, include a `## Sources` section with URLs, file paths, command outputs, or note links sufficient to re-check each major claim.
 - Do not store secrets, API keys, credentials, private tokens, or sensitive personal data unless the user explicitly instructs and the storage location is appropriate.
 - If creating an agent task record, include goal, context, decisions, progress, result, and follow-ups.
 

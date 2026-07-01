@@ -19,8 +19,8 @@ updated: YYYY-MM-DD
 
 Rules:
 
-- Use stable `id` — MDGraph and agents use `id` for retrieval. Do not change casually; changing breaks references unless links are updated deliberately.
-- `description` should be a compact one-sentence summary for search previews and generated indexes.
+- Use stable `id` — MDGraph and agents use `id` for retrieval. Do not change `id` unless the user explicitly requests an ID migration; when changing it, update all wikilinks/backlinks that reference the old id.
+- Use `description` as a one-sentence search preview, ≤80 characters when practical.
 - `resource` links to a canonical external asset (GitHub repo, project path, API endpoint, docs page, dashboard). Omit for purely abstract notes.
 - Unknown frontmatter keys are allowed; preserve them when updating notes.
 
@@ -52,7 +52,7 @@ Do not encode lifecycle into `type`. Use `type: research` + `status: archived` i
 
 - Each Markdown file = one knowledge concept/note.
 - Keep `type` non-empty on all real notes. MDGraph can fall back to `note`, but producers should write explicit types.
-- Prefer `description` for one-sentence summaries.
+
 - Prefer `resource` when anchored to an external/canonical asset.
 - Unknown frontmatter keys are allowed; preserve them.
 - Broken links are warnings, not failures. They may represent planned notes.
