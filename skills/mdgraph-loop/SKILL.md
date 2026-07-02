@@ -1,6 +1,9 @@
 ---
 name: mdgraph-loop
-description: Loop-driven engineering workflow for /loop-* commands.
+description: >-
+  Loop-driven engineering workflow backed by mdgraph and KnowledgeVault.
+  Orchestrates structured multi-phase task execution (Init→Explore→Plan→Execute→Verify→Crystallize)
+  with subagent delegation and phase-gated transitions.
 ---
 
 # mdgraph-loop
