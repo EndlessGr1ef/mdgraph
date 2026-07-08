@@ -52,6 +52,7 @@ Important behaviors already covered:
 - MCP update rewrites Markdown and refreshes the index.
 - Watch mode works even when the current working directory is outside the vault.
 - Compatible pre-version DBs are stamped; incompatible DBs are rebuilt.
+- Notes are searchable by filename even when a frontmatter title is set (path is indexed in FTS).
 
 ## Git hygiene
 

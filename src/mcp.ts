@@ -119,7 +119,7 @@ export async function startMcpServer(vault?: string): Promise<void> {
 
   server.tool(
     "mdgraph_search",
-    "Search indexed Markdown notes with SQLite FTS5. Each result includes a compact graph summary with link counts and preview.",
+    "Search indexed Markdown notes with SQLite FTS5 (matches title, path/filename, body, tags, and aliases). Each result includes a compact graph summary with link counts and preview.",
     {
       query: z.string().min(1),
       limit: z.number().int().min(1).max(50).default(10),

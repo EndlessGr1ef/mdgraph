@@ -8,7 +8,7 @@ MDGraph treats Markdown files as the source of truth and keeps a disposable SQLi
 
 - Index Markdown and MDX files from a vault directory
 - Parse frontmatter, tags, aliases, dates, and wiki/Markdown links
-- Search notes with SQLite FTS5 trigram search
+- Search notes with SQLite FTS5 trigram search (matches title, path/filename, body, tags, and aliases)
 - Extract Markdown heading outlines and include them in read/search results
 - Watch vault changes and keep the index fresh
 - Ignore templates and user-configured paths with `.mdgraphignore`

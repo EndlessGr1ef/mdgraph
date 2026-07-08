@@ -20,7 +20,7 @@ import type {
   SearchResult,
 } from "./types.js";
 
-export const CURRENT_SCHEMA_VERSION = 2;
+export const CURRENT_SCHEMA_VERSION = 3;
 
 export interface MdGraphDb {
   db: DatabaseHandle;
@@ -174,6 +174,7 @@ function migrate(db: DatabaseHandle): void {
     CREATE VIRTUAL TABLE IF NOT EXISTS notes_fts USING fts5(
       note_id UNINDEXED,
       title,
+      path,
       body,
       tags,
       aliases,
@@ -271,9 +272,9 @@ export function upsertNote(db: DatabaseHandle, note: ParsedNote, fileStat: fs.St
     for (const link of note.links) insertLink.run(note.id, link);
 
     db.prepare(`
-      INSERT INTO notes_fts (note_id, title, body, tags, aliases)
-      VALUES (?, ?, ?, ?, ?)
-    `).run(note.id, note.title, note.body, note.tags.join(" "), note.aliases.join(" "));
+      INSERT INTO notes_fts (note_id, title, path, body, tags, aliases)
+      VALUES (?, ?, ?, ?, ?, ?)
+    `).run(note.id, note.title, note.path, note.body, note.tags.join(" "), note.aliases.join(" "));
   });
 
   tx();
@@ -339,7 +340,7 @@ export function searchNotes(db: DatabaseHandle, query: string, options: SearchOp
       n.status,
       n.headings_json,
       COALESCE((SELECT group_concat(t.tag, ',') FROM tags t WHERE t.note_id = n.id), '') AS tags,
-      snippet(notes_fts, 2, '[', ']', ' … ', 24) AS snippet,
+      snippet(notes_fts, 3, '[', ']', ' … ', 24) AS snippet,
       bm25(notes_fts) AS rank
     FROM notes_fts
     JOIN notes n ON n.id = notes_fts.note_id

@@ -798,6 +798,31 @@ describe("mdgraph core behaviors", () => {
     }
   });
 
+  it("matches by filename even when a frontmatter title is set", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      // Filename stem is "filename-matchable"; frontmatter title differs,
+      // so without indexing the path the note would be unsearchable by name.
+      writeNote(
+        vaultDir,
+        "filename-matchable.md",
+        [
+          "---",
+          "id: filename-matchable",
+          "title: Display Title",
+          "---",
+          "Body text contains neither the filename nor the title.",
+        ].join("\n"),
+      );
+      await syncVault(db.db, vaultDir);
+
+      const results = searchNotes(db.db, "filename-matchable");
+      expect(results.some((r) => r.id === "filename-matchable")).toBe(true);
+    } finally {
+      close();
+    }
+  });
+
   // -----------------------------------------------------------------------
   // Graph: getNote includes outlinks, backlinks, broken, ambiguous
   // -----------------------------------------------------------------------
