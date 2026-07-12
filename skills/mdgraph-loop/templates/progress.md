@@ -4,6 +4,7 @@ title: Task Title
 type: agent_task
 phase: Init
 status: in_progress
+route: implementation-planned
 tags: [agent-task]
 created: YYYY-MM-DD
 updated: YYYY-MM-DD
@@ -25,15 +26,19 @@ updated: YYYY-MM-DD
 | Phase | Status | Completed |
 |-------|--------|-----------|
 | Init | in_progress | - |
-| Explore | {pending or N/A} | - |
-| Plan | {pending or N/A} | - |
-| Execute | {pending or N/A} | - |
-| Verify | {pending or N/A} | - |
+| Explore | pending | - |
+| Plan | pending | - |
+| Execute | pending | - |
+| Verify | pending | - |
 | Crystallize | pending | - |
 
 ## Progress
 
 ## Decisions
+
+## Verification
+
+## Loopbacks
 
 ## Result
 

@@ -23,7 +23,7 @@ If there are unresolved decisions, use the OpenCode `question` tool or a concise
 
 ## 3. PRD / decision record
 
-Write the full decision record into `plan.md`, and copy the confirmed decisions summary to `progress.md` `## Decisions`. Include:
+Write the full decision record into `task_plan.md`, and copy the confirmed decisions summary to `progress.md` `## Decisions`. Include:
 
 - findings summary
 - confirmed decisions
@@ -42,7 +42,7 @@ Write the plan note with:
 - verification criteria
 - risk areas
 
-Apply the shared Subagent Policy when the plan is broad, high-risk, or has competing approaches.
+Apply the Subagent Policy defined in SKILL.md when the plan is broad, high-risk, or has competing approaches.
 
 ## 5. Auto-approve
 
@@ -50,6 +50,10 @@ If all decisions are clear and the plan is sound, auto-approve and proceed direc
 
 Only reach out to the user if the task requirements or approach are fundamentally ambiguous — use a single concise question, then proceed.
 
-## 6. Close
+## 6. Close criteria
 
-Update `task_plan.md` and `progress.md`.
+- Decision record written to `task_plan.md`.
+- Ordered tasks, dependencies, files, and verification criteria documented.
+- Approach confirmed with user if ambiguous.
+
+Update `task_plan.md` and `progress.md`. Apply the Phase Transition rules in SKILL.md.

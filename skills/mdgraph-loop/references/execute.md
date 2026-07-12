@@ -5,6 +5,8 @@ description: Execute phase — implement the approved plan and log progress.
 
 # Execute Phase (`/loop-execute`)
 
+Route guard: if the task route is `non-execution`, this phase must never be entered. The SKILL.md Canonical State and Routes sections forbid it. Set task status `blocked`. Restore: set Execute status to `N/A` in Phase Progress. If a unique valid route phase (Explore, Verify, or Crystallize) is already `in_progress`, restore frontmatter `phase` to it. Otherwise leave `blocked` for explicit repair — do not point `phase` at a completed or `N/A` phase. Stop.
+
 Implement the approved plan and keep the progress note current.
 
 ## 1. Confirmation gate (mandatory)
@@ -21,15 +23,17 @@ Use the OpenCode `question` tool with these options:
 - `Revise plan` — user wants changes to the plan before proceeding
 - `Abort` — cancel the task
 
-Do not proceed to implementation until the user chooses `Confirm and execute`. This gate replaces the old Plan approval.
+If the user chooses `Revise plan`, apply the route-specific Revise plan transition defined in SKILL.md Phase Transition commands.
+
+Do not proceed to implementation until the user chooses `Confirm and execute`. This gate replaces auto-advance for the first Execute entry.
 
 ## 2. Always delegate
 
-The main agent never writes code. Spawn a subagent for every implementation unit:
+The main agent never writes code. Spawn a subagent for every implementation unit. Select the agent by capability for the work size:
 
-- Single file change: `@fixer`
-- Multiple files: `task` (background) for parallel writes or `deepwork` for complex work
-- Context gathering: `@explorer`
+- Single file change: focused implementation agent.
+- Multiple files: parallel-writing or deep-work agent.
+- Context gathering: exploratory research agent.
 
 While subagents write, the main agent reads ahead, updates progress, or reviews completed output.
 
@@ -51,10 +55,13 @@ If a step fails:
 - adjust the approach before retrying
 - do not repeat the same failed action immediately
 
-## 6. Review policy
+## 6. Close criteria
 
-Apply the shared Subagent Policy for every non-trivial change. When using subagent delegation, run a separate review pass (adversarial or checklist) before closing.
+- All implementation tasks from `task_plan.md` complete.
+- Progress logged for each step.
+- Failures recorded and resolved.
+- `progress.md`, `findings.md`, and `task_plan.md` updated.
 
-## 7. Close
+Convergence review is the responsibility of the Verify phase — do not duplicate it here.
 
-Update `progress.md`, `findings.md`, and `task_plan.md` as needed.
+Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Apply the Phase Transition rules in SKILL.md.

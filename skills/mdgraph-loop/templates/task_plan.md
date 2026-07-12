@@ -1,48 +1,38 @@
+---
+id: 10_tasks_yyyymmdd_hhmmss_short-kebab-name_task_plan
+title: Task Title Plan
+type: plan
+tags: [task-plan]
+created: YYYY-MM-DD
+updated: YYYY-MM-DD
+---
+
 # Task Plan: [brief description]
 
 ## Goal
 [one sentence describing the desired outcome]
 
-## Current Phase
-Init
+## Approach
+[high-level strategy]
 
-## Phases
+## Ordered Tasks
+1. [task]
+2. [task]
 
-### Init
-- [ ] Understand user request
-- [ ] Identify constraints and requirements
-- [ ] Record findings in findings.md
-- **Status:** in_progress
+## Dependencies
+- [dependency]
 
-### Explore (optional)
-- [ ] Gather context from codegraph, mdgraph, or external sources
-- [ ] Document evidence in findings.md
-- **Status:** pending
+## Files Involved
+- [file path]
 
-### Plan (optional)
-- [ ] Confirm technical approach
-- [ ] Record decisions and rationale
-- **Status:** pending
+## Verification Criteria
+- [criteria]
 
-### Execute
-- [ ] Implement according to plan
-- [ ] Log progress in progress.md
-- **Status:** pending
+## Risks
+- [risk]
 
-### Verify
-- [ ] Check success criteria are met
-- [ ] Run tests and record results
-- **Status:** pending
-
-### Crystallize
-- [ ] Summarize task changes and learnings
-- [ ] Persist knowledge to vault
-- [ ] Add cross-links between knowledge and task files
-- **Status:** pending
-
-## Key Questions
-1. [question to resolve]
-2. [question to resolve]
+## Non-goals
+- [non-goal]
 
 ## Decisions
 | Decision | Rationale |
@@ -55,6 +45,5 @@ Init
 |       | 1        |            |
 
 ## Notes
-- Update phase status as you progress: pending → in_progress → complete
-- Re-read this plan before major decisions (attention refresh)
-- Log all errors to avoid repeating them
+- Re-read this plan before major decisions (attention refresh).
+- Log all errors to avoid repeating them.

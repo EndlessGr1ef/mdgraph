@@ -33,12 +33,12 @@ Use the smallest evidence set that covers the required context:
 
 ## 4. Typical lanes
 
-Apply the shared Subagent Policy.
+When needed, apply the Subagent Policy defined in SKILL.md.
 
 - source-code lane
 - local-history / notes lane
 - external-docs lane
-- oracle review lane, when needed
+- adversarial review lane, when needed
 
 ## 5. Findings note schema
 
@@ -63,6 +63,4 @@ Close only when the findings note clearly shows:
 - gaps are non-blocking or resolved
 - the next phase is safe to start
 
-For routes without Verify, also map findings directly to `## Success Criteria` before closing Explore. If the success criteria are not satisfied, keep Explore pending.
-
-Close: update `findings.md` and `progress.md`.
+Update `findings.md` and `progress.md`. Apply the Phase Transition rules in SKILL.md.

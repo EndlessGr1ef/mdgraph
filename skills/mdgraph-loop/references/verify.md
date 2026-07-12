@@ -20,7 +20,7 @@ Review the relevant artifact against:
 
 ## 2. Review depth
 
-Use the shared Subagent Policy:
+Apply the Subagent Policy defined in SKILL.md. For code-changing routes, the verifier must not be the same agent that performed Execute.
 
 - adversarial review for risky work
 - direct checklist for straightforward work
@@ -37,13 +37,15 @@ Write the verification report into `progress.md` under `## Verification`. Includ
 - evidence observed
 - open gaps
 - convergence decision: `yes` or `no`
-- if `no`, the required loopback: Explore for missing evidence or Execute for code fixes
+- if `no`, the required action selected by the route-aware Verification Loopback rules in SKILL.md
 - residual risks
 
-If the work is not converged, record the blocking gaps and keep Verify pending.
+If converged, proceed to close and set `phase` to Crystallize.
 
-If the work is converged, update the task `phase` to `Crystallize` before closing Verify.
+If not converged, apply the Verification Loopback rules defined in SKILL.md.
 
 ## 5. Close
 
-Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Only close when convergence is `yes`. When `no`, prompt the loopback phase.
+Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Only close when convergence is `yes`. Apply the Phase Transition rules in SKILL.md to close this phase and advance to Crystallize.
+
+When convergence is `no`, do not close. Apply the loopback procedure in section 4 instead.
