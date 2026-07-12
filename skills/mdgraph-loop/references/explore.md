@@ -9,7 +9,7 @@ Gather the context needed by the next phase and record the evidence.
 
 ## 1. Restore context
 
-- Load the task note first.
+- Load `progress.md` first.
 - Read `## Goal`, `## Scope`, `## Constraints`, `## Success Criteria`, and `## Phase Progress`.
 - Follow linked deliverables and related notes before starting new work.
 
@@ -65,4 +65,4 @@ Close only when the findings note clearly shows:
 
 For routes without Verify, also map findings directly to `## Success Criteria` before closing Explore. If the success criteria are not satisfied, keep Explore pending.
 
-Close using the shared Close Phase Protocol.
+Close: update `findings.md` and `progress.md`.

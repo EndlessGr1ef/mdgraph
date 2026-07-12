@@ -31,7 +31,7 @@ Map each check to a success criterion and record the result.
 
 ## 4. Convergence evidence report
 
-Write the verification report into `progress.md` under `## Verification`; copy only the convergence summary to the task note if needed. Include:
+Write the verification report into `progress.md` under `## Verification`. Include:
 
 - checks run
 - evidence observed
@@ -40,10 +40,10 @@ Write the verification report into `progress.md` under `## Verification`; copy o
 - if `no`, the required loopback: Explore for missing evidence or Execute for code fixes
 - residual risks
 
-If the work is not converged, record the blocking gaps, keep Verify pending, and do not mark Verify `✅ done`.
+If the work is not converged, record the blocking gaps and keep Verify pending.
 
-If the work is converged, update the task status to `review` before closing Verify so `/loop-crystallize` can resume the handoff.
+If the work is converged, update the task `phase` to `Crystallize` before closing Verify.
 
 ## 5. Close
 
-Close using the shared Close Phase Protocol only when convergence is `yes`. When convergence is `no`, prompt the loopback phase without closing Verify.
+Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Only close when convergence is `yes`. When `no`, prompt the loopback phase.

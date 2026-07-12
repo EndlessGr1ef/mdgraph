@@ -35,7 +35,7 @@ While subagents write, the main agent reads ahead, updates progress, or reviews 
 
 ## 3. Load state
 
-Read the task note, the plan note, and the progress note before starting.
+Read `progress.md`, `task_plan.md`, and `findings.md` before starting.
 
 ## 4. Execute tasks
 
@@ -57,4 +57,4 @@ Apply the shared Subagent Policy for every non-trivial change. When using subage
 
 ## 7. Close
 
-Close using the shared Close Phase Protocol.
+Update `progress.md`, `findings.md`, and `task_plan.md` as needed.

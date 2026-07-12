@@ -23,7 +23,7 @@ If there are unresolved decisions, use the OpenCode `question` tool or a concise
 
 ## 3. PRD / decision record
 
-Write the full decision record into `plan.md`, and copy the confirmed decisions summary to the task note `## Decisions`. Include:
+Write the full decision record into `plan.md`, and copy the confirmed decisions summary to `progress.md` `## Decisions`. Include:
 
 - findings summary
 - confirmed decisions
@@ -46,10 +46,10 @@ Apply the shared Subagent Policy when the plan is broad, high-risk, or has compe
 
 ## 5. Auto-approve
 
-If all decisions are clear and the plan is sound, auto-approve: mark Plan `✅ done` and proceed directly to Execute. No user confirmation is needed at this stage.
+If all decisions are clear and the plan is sound, auto-approve and proceed directly to Execute. No user confirmation is needed at this stage.
 
 Only reach out to the user if the task requirements or approach are fundamentally ambiguous — use a single concise question, then proceed.
 
 ## 6. Close
 
-Close using the shared Close Phase Protocol.
+Update `task_plan.md` and `progress.md`.
