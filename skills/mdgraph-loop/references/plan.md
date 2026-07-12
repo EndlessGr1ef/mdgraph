@@ -56,4 +56,4 @@ Only reach out to the user if the task requirements or approach are fundamentall
 - Ordered tasks, dependencies, files, and verification criteria documented.
 - Approach confirmed with user if ambiguous.
 
-Update `task_plan.md` and `progress.md`. Apply the Phase Transition rules in SKILL.md.
+Update `task_plan.md` and `progress.md`. Apply the Phase Transition rules in references/workflow.md.

@@ -37,15 +37,15 @@ Write the verification report into `progress.md` under `## Verification`. Includ
 - evidence observed
 - open gaps
 - convergence decision: `yes` or `no`
-- if `no`, the required action selected by the route-aware Verification Loopback rules in SKILL.md
+- if `no`, the required action selected by the Verification Loopback rules in references/workflow.md
 - residual risks
 
 If converged, proceed to close and set `phase` to Crystallize.
 
-If not converged, apply the Verification Loopback rules defined in SKILL.md.
+If not converged, apply the Verification Loopback rules defined in references/workflow.md.
 
 ## 5. Close
 
-Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Only close when convergence is `yes`. Apply the Phase Transition rules in SKILL.md to close this phase and advance to Crystallize.
+Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Only close when convergence is `yes`. Apply the Phase Transition rules in references/workflow.md to close this phase and advance to Crystallize.
 
 When convergence is `no`, do not close. Apply the loopback procedure in section 4 instead.

@@ -63,4 +63,4 @@ Close only when the findings note clearly shows:
 - gaps are non-blocking or resolved
 - the next phase is safe to start
 
-Update `findings.md` and `progress.md`. Apply the Phase Transition rules in SKILL.md.
+Update `findings.md` and `progress.md`. Apply the Phase Transition rules in references/workflow.md.

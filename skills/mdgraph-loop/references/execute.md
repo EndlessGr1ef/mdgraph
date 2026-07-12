@@ -5,7 +5,7 @@ description: Execute phase — implement the approved plan and log progress.
 
 # Execute Phase (`/loop-execute`)
 
-Route guard: if the task route is `non-execution`, this phase must never be entered. The SKILL.md Canonical State and Routes sections forbid it. Set task status `blocked`. Restore: set Execute status to `N/A` in Phase Progress. If a unique valid route phase (Explore, Verify, or Crystallize) is already `in_progress`, restore frontmatter `phase` to it. Otherwise leave `blocked` for explicit repair — do not point `phase` at a completed or `N/A` phase. Stop.
+Route guard: if the task route is `non-execution`, this phase must never be entered. See route definitions in SKILL.md and loopback rules in references/workflow.md. Set task status `blocked`. Restore: set Execute status to `N/A` in Phase Progress. If a unique valid route phase (Explore, Verify, or Crystallize) is already `in_progress`, restore frontmatter `phase` to it. Otherwise leave `blocked` for explicit repair — do not point `phase` at a completed or `N/A` phase. Stop.
 
 Implement the approved plan and keep the progress note current.
 
@@ -23,7 +23,7 @@ Use the OpenCode `question` tool with these options:
 - `Revise plan` — user wants changes to the plan before proceeding
 - `Abort` — cancel the task
 
-If the user chooses `Revise plan`, apply the route-specific Revise plan transition defined in SKILL.md Phase Transition commands.
+If the user chooses `Revise plan`, apply the route-specific Revise plan transition defined in references/workflow.md Phase Transition commands.
 
 Do not proceed to implementation until the user chooses `Confirm and execute`. This gate replaces auto-advance for the first Execute entry.
 
@@ -64,4 +64,4 @@ If a step fails:
 
 Convergence review is the responsibility of the Verify phase — do not duplicate it here.
 
-Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Apply the Phase Transition rules in SKILL.md.
+Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Apply the Phase Transition rules in references/workflow.md.

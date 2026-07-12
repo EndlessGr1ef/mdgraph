@@ -46,4 +46,4 @@ Search for related active tasks and reuse existing context when useful. Add only
 - All three task files created and initialized.
 - Phase Progress correctly reflects the route.
 
-Update `progress.md`. Apply the Phase Transition rules in SKILL.md.
+Update `progress.md`. Apply the Phase Transition rules in references/workflow.md.
