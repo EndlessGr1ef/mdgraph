@@ -7,7 +7,8 @@ import Database from "better-sqlite3";
 import { getGraph, openDb, searchNotes, getNote, getStatus, markDeleted, CURRENT_SCHEMA_VERSION } from "../db.js";
 import { syncVault, indexFile } from "../indexer.js";
 import { resolveDbPath, toRelativePath } from "../paths.js";
-import { updateNote } from "../mcp.js";
+import { updateNote, createNote } from "../mcp.js";
+import { deriveTags, extractInlineTags, normalizeTag } from "../tags.js";
 import { watchVault } from "../watcher.js";
 
 // ---------------------------------------------------------------------------
@@ -1456,6 +1457,99 @@ describe("mdgraph core behaviors", () => {
       }
     } finally {
       fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
+
+  // -----------------------------------------------------------------------
+  // 18. Inline #tags and deterministic tag derivation
+  // -----------------------------------------------------------------------
+  it("indexes inline #tags from the body and ignores code blocks", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      writeNote(
+        vaultDir,
+        "inline.md",
+        [
+          "---",
+          "id: inline",
+          "title: Inline",
+          "tags: [front]",
+          "---",
+          "参见 #mdgraph 和 #中文标签 的用法。",
+          "```ts",
+          "const x = 1; // #notatag",
+          "```",
+        ].join("\n"),
+      );
+      await syncVault(db.db, vaultDir);
+
+      expect(searchNotes(db.db, "Inline", { tag: "mdgraph" }).map((r) => r.id)).toEqual(["inline"]);
+      expect(searchNotes(db.db, "Inline", { tag: "中文标签" }).map((r) => r.id)).toEqual(["inline"]);
+      expect(searchNotes(db.db, "Inline", { tag: "notatag" })).toHaveLength(0);
+
+      const all = searchNotes(db.db, "Inline");
+      expect(all[0].tags).toEqual(expect.arrayContaining(["front", "mdgraph", "中文标签"]));
+    } finally {
+      close();
+    }
+  });
+
+  it("derives tags from inline #tags, folder names, and existing vocabulary", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      writeNote(vaultDir, "seed.md", "---\nid: seed\ntitle: Seed\ntags: [select-ai, mdgraph]\n---\nseed body");
+      await syncVault(db.db, vaultDir);
+
+      const tags = deriveTags(
+        db.db,
+        "30_knowledge/projects/select-ai/readme.md",
+        "Select AI 使用说明",
+        "介绍 #prompt 的用法，Select-AI 支持翻译。",
+      );
+      expect(tags).toEqual(expect.arrayContaining(["prompt", "select-ai"]));
+      expect(tags).not.toContain("mdgraph");
+
+      // Timestamp-prefixed task folders strip their date prefix
+      const taskTags = deriveTags(db.db, "10_tasks/20260814_120000_fix-search/plan.md", "修复计划", "正文。");
+      expect(taskTags).toContain("fix-search");
+      expect(taskTags).not.toContain("20260814");
+
+      expect(extractInlineTags("```\n#no\n```\n看 #yes 与 `#code`")).toEqual(["yes"]);
+      expect(normalizeTag("#OpenCode")).toBe("opencode");
+    } finally {
+      close();
+    }
+  });
+
+  it("createNote derives tags when none are provided and normalizes explicit tags", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      writeNote(vaultDir, "seed.md", "---\nid: seed\ntitle: Seed\ntags: [mdgraph]\n---\nseed body");
+      await syncVault(db.db, vaultDir);
+
+      const result = await createNote(db.db, vaultDir, {
+        path: "30_knowledge/projects/mdgraph/zh-search.md",
+        title: "MDGraph 中文检索",
+        content: "讨论 #cjk 检索与标签。",
+      });
+      expect(result.derived_tags).toEqual(expect.arrayContaining(["cjk", "mdgraph"]));
+      expect(result.tags).toEqual(result.derived_tags);
+
+      // Derived tags are persisted to frontmatter and searchable
+      const byTag = searchNotes(db.db, "MDGraph", { tag: "mdgraph" });
+      expect(byTag.map((r) => r.id)).toContain(result.id);
+
+      // Explicit tags are normalized (trimmed, # stripped, lowercased, deduped)
+      const explicit = await createNote(db.db, vaultDir, {
+        path: "30_knowledge/projects/mdgraph/explicit.md",
+        title: "Explicit",
+        content: "body",
+        tags: ["#OpenCode", "OpenCode", "openCode", ""],
+      });
+      expect(explicit.tags).toEqual(["opencode"]);
+      expect(explicit.derived_tags).toEqual([]);
+    } finally {
+      close();
     }
   });
 });

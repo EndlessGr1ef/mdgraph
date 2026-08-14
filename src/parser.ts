@@ -1,6 +1,7 @@
 import path from "node:path";
 import matter from "gray-matter";
 import type { MarkdownHeading, ParsedNote } from "./types.js";
+import { extractInlineTags } from "./tags.js";
 
 const WIKI_LINK_RE = /\[\[([^\]|#]+)(?:#[^\]|]+)?(?:\|[^\]]+)?\]\]/g;
 const MARKDOWN_LINK_RE = /\[[^\]]+\]\(([^)#]+)(?:#[^)]+)?\)/g;
@@ -105,7 +106,7 @@ export function parseMarkdownNote(relativePath: string, raw: string): ParsedNote
   const title = asString(frontmatter.title, stem);
   const type = asString(frontmatter.type, "note");
   const status = asString(frontmatter.status, "active");
-  const tags = asStringArray(frontmatter.tags);
+  const tags = [...new Set([...asStringArray(frontmatter.tags), ...extractInlineTags(body)])];
   const aliases = asStringArray(frontmatter.aliases);
   const created = asString(frontmatter.created, "") || null;
   const updated = asString(frontmatter.updated, "") || null;

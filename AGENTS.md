@@ -53,6 +53,8 @@ Important behaviors already covered:
 - Watch mode works even when the current working directory is outside the vault.
 - Compatible pre-version DBs are stamped; incompatible DBs are rebuilt.
 - Notes are searchable by filename even when a frontmatter title is set (path is indexed in FTS).
+- Short CJK queries (1–2 chars) fall back to LIKE substring search, and full-width query characters are normalized.
+- Inline `#tags` in the body are merged into indexed tags (code blocks ignored); note creation derives tags deterministically when none are provided.
 
 ## Git hygiene
 

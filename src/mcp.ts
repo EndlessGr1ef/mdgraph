@@ -8,6 +8,7 @@ import { z } from "zod";
 import { getGraph, getNote, getStatus, openDb, searchNotes } from "./db.js";
 import { indexFile, syncVault, type SyncResult } from "./indexer.js";
 import { assertInsideVault, resolveVaultRoot, toRelativePath } from "./paths.js";
+import { deriveTags, normalizeTags } from "./tags.js";
 import { watchVault } from "./watcher.js";
 
 function jsonResult(value: unknown) {
@@ -29,6 +30,15 @@ export interface UpdateNoteInput {
   status?: string;
   tags?: string[];
   aliases?: string[];
+}
+
+export interface CreateNoteInput {
+  path: string;
+  title: string;
+  content?: string;
+  type?: string;
+  status?: string;
+  tags?: string[];
 }
 
 async function writeFileAtomic(targetPath: string, content: string): Promise<void> {
@@ -70,7 +80,7 @@ export async function updateNote(db: DatabaseHandle, vaultRoot: string, input: U
   if (input.title !== undefined) frontmatter.title = input.title;
   if (input.type !== undefined) frontmatter.type = input.type;
   if (input.status !== undefined) frontmatter.status = input.status;
-  if (input.tags !== undefined) frontmatter.tags = input.tags;
+  if (input.tags !== undefined) frontmatter.tags = normalizeTags(input.tags);
   if (input.aliases !== undefined) frontmatter.aliases = input.aliases;
 
   const markdown = matter.stringify(input.content ?? parsed.content, frontmatter);
@@ -78,6 +88,37 @@ export async function updateNote(db: DatabaseHandle, vaultRoot: string, input: U
   await indexFile(db, vaultRoot, targetPath);
 
   return { success: true, id: note.id, path: toRelativePath(vaultRoot, targetPath) };
+}
+
+export async function createNote(
+  db: DatabaseHandle,
+  vaultRoot: string,
+  input: CreateNoteInput,
+): Promise<{ success: boolean; id: string; path: string; tags: string[]; derived_tags: string[] }> {
+  const targetPath = assertInsideVault(vaultRoot, input.path.endsWith(".md") ? input.path : `${input.path}.md`);
+  await fs.mkdir(path.dirname(targetPath), { recursive: true });
+  const now = new Date().toISOString().slice(0, 10);
+  const relPath = toRelativePath(vaultRoot, targetPath);
+  const id = input.path
+    .replace(/\.md$/i, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "_")
+    .replace(/^_+|_+$/g, "")
+    .toLowerCase();
+  const explicitTags = normalizeTags(input.tags ?? []);
+  const derivedTags = explicitTags.length > 0 ? [] : deriveTags(db, relPath, input.title, input.content ?? "");
+  const finalTags = explicitTags.length > 0 ? explicitTags : derivedTags;
+  const markdown = matter.stringify(input.content ?? "", {
+    id,
+    title: input.title,
+    type: input.type ?? "note",
+    status: input.status ?? "active",
+    tags: finalTags,
+    created: now,
+    updated: now,
+  });
+  await fs.writeFile(targetPath, markdown, { encoding: "utf8", flag: "wx" });
+  await indexFile(db, vaultRoot, targetPath);
+  return { success: true, id, path: relPath, tags: finalTags, derived_tags: derivedTags };
 }
 
 export async function startMcpServer(vault?: string): Promise<void> {
@@ -165,8 +206,21 @@ export async function startMcpServer(vault?: string): Promise<void> {
   });
 
   server.tool(
+    "mdgraph_suggest_tags",
+    "Suggest tags for a note deterministically: inline #tags in the content, the deepest folder name in the path, and existing vault tags that appear in the title, content, or path. Use this before creating or updating a note so it stays discoverable.",
+    {
+      path: z.string().min(1),
+      title: z.string().default(""),
+      content: z.string().default(""),
+    },
+    async (input) => {
+      return jsonResult({ suggested_tags: deriveTags(store.db, input.path, input.title, input.content) });
+    },
+  );
+
+  server.tool(
     "mdgraph_create_note",
-    "Create a Markdown note under the vault and index it",
+    "Create a Markdown note under the vault and index it. If tags are omitted or empty, the server derives them deterministically from inline #tags, the note's folder, and the existing tag vocabulary; the final tags and derived tags are returned in the response.",
     {
       path: z.string().min(1),
       title: z.string().min(1),
@@ -176,32 +230,13 @@ export async function startMcpServer(vault?: string): Promise<void> {
       tags: z.array(z.string()).default([]),
     },
     async (input) => {
-      const targetPath = assertInsideVault(vaultRoot, input.path.endsWith(".md") ? input.path : `${input.path}.md`);
-      await fs.mkdir(path.dirname(targetPath), { recursive: true });
-      const now = new Date().toISOString().slice(0, 10);
-      const id = input.path
-        .replace(/\.md$/i, "")
-        .replace(/[^a-zA-Z0-9_-]+/g, "_")
-        .replace(/^_+|_+$/g, "")
-        .toLowerCase();
-      const markdown = matter.stringify(input.content, {
-        id,
-        title: input.title,
-        type: input.type,
-        status: input.status,
-        tags: input.tags,
-        created: now,
-        updated: now,
-      });
-      await fs.writeFile(targetPath, markdown, { encoding: "utf8", flag: "wx" });
-      await indexFile(store.db, vaultRoot, targetPath);
-      return jsonResult({ success: true, id, path: toRelativePath(vaultRoot, targetPath) });
+      return jsonResult(await createNote(store.db, vaultRoot, input));
     },
   );
 
   server.tool(
     "mdgraph_update_note",
-    "Update an existing Markdown note by id and reindex it",
+    "Update an existing Markdown note by id and reindex it. Tags are normalized (trimmed, lowercased, deduplicated) when provided.",
     {
       id: z.string().min(1),
       title: z.string().min(1).optional(),
