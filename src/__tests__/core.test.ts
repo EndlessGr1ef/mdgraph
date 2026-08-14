@@ -1358,4 +1358,104 @@ describe("mdgraph core behaviors", () => {
       close();
     }
   });
+
+  // -----------------------------------------------------------------------
+  // 17. CJK search: short queries fall back to substring matching
+  // -----------------------------------------------------------------------
+  it("finds Chinese notes with 1-2 char queries via LIKE fallback", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      writeNote(vaultDir, "zh-a.md", "---\nid: zh-a\ntitle: 检索优化\n---\n对中文内容的检索不太友好，比如知识库。");
+      writeNote(vaultDir, "zh-b.md", "---\nid: zh-b\ntitle: 其他\n---\n全文检索是核心能力。");
+      writeNote(vaultDir, "en.md", "---\nid: en\ntitle: English\n---\nNo Chinese here.");
+      await syncVault(db.db, vaultDir);
+
+      const twoChar = searchNotes(db.db, "检索");
+      expect(twoChar.map((r) => r.id).sort()).toEqual(["zh-a", "zh-b"]);
+      expect(twoChar[0].snippet).toContain("[检索]");
+
+      const oneChar = searchNotes(db.db, "检");
+      expect(oneChar.map((r) => r.id).sort()).toEqual(["zh-a", "zh-b"]);
+
+      const threeChar = searchNotes(db.db, "知识库");
+      expect(threeChar.map((r) => r.id)).toEqual(["zh-a"]);
+
+      // Multi-token AND must still work when one token is 1-2 chars
+      const multiToken = searchNotes(db.db, "中文 检索");
+      expect(multiToken.map((r) => r.id)).toEqual(["zh-a"]);
+    } finally {
+      close();
+    }
+  });
+
+  it("escapes LIKE wildcards in fallback queries", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      writeNote(vaultDir, "lit.md", "---\nid: lit\n---\n提到检索% 的坑。");
+      writeNote(vaultDir, "plain.md", "---\nid: plain\n---\n提到检索的坑。");
+      await syncVault(db.db, vaultDir);
+
+      const results = searchNotes(db.db, "检索%");
+      expect(results.map((r) => r.id)).toEqual(["lit"]);
+    } finally {
+      close();
+    }
+  });
+
+  it("normalizes full-width query characters", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      writeNote(vaultDir, "fw.md", "---\nid: fw\ntitle: Editor\n---\nOpenCode 是主要的编辑器工具。");
+      await syncVault(db.db, vaultDir);
+
+      const results = searchNotes(db.db, "ｏｐｅｎｃｏｄｅ");
+      expect(results.map((r) => r.id)).toEqual(["fw"]);
+    } finally {
+      close();
+    }
+  });
+
+  it("ranks title matches above body matches", async () => {
+    const { vaultDir, db, close } = createTempVault();
+    try {
+      writeNote(vaultDir, "title-hit.md", "---\nid: title-hit\ntitle: 搜索引擎 优化\n---\n正文没有关键词。");
+      writeNote(vaultDir, "body-only.md", "---\nid: body-only\ntitle: 普通\n---\n这里提到搜索引擎技术。");
+      await syncVault(db.db, vaultDir);
+
+      const results = searchNotes(db.db, "搜索引擎");
+      expect(results.map((r) => r.id)).toEqual(expect.arrayContaining(["title-hit", "body-only"]));
+      expect(results[0].id).toBe("title-hit");
+    } finally {
+      close();
+    }
+  });
+
+  it("rebuilds when the FTS table does not use the trigram tokenizer", async () => {
+    const tmpDir = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), "mdgraph-test-")));
+    const vaultDir = path.join(tmpDir, "vault");
+    fs.mkdirSync(vaultDir, { recursive: true });
+    try {
+      const first = openDb(vaultDir);
+      first.close();
+
+      const raw = new Database(resolveDbPath(vaultDir));
+      raw.exec("DROP TABLE notes_fts");
+      raw.exec(
+        "CREATE VIRTUAL TABLE notes_fts USING fts5(note_id UNINDEXED, title, path, body, tags, aliases, tokenize = 'unicode61')",
+      );
+      raw.close();
+
+      const second = openDb(vaultDir);
+      try {
+        const fts = second.db.prepare("SELECT sql FROM sqlite_master WHERE name = 'notes_fts'").get() as {
+          sql: string;
+        };
+        expect(fts.sql.toLowerCase()).toContain("trigram");
+      } finally {
+        second.close();
+      }
+    } finally {
+      fs.rmSync(tmpDir, { recursive: true, force: true });
+    }
+  });
 });

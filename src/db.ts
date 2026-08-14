@@ -111,12 +111,14 @@ function hasCurrentSchema(db: DatabaseHandle): boolean {
   }
 
   const fts = db.prepare(`
-    SELECT name
+    SELECT sql
     FROM sqlite_master
     WHERE type = 'table' AND name = 'notes_fts'
     LIMIT 1
-  `).get();
-  return fts !== undefined;
+  `).get() as { sql: string } | undefined;
+  // The FTS table must exist AND use the trigram tokenizer; an older or
+  // hand-created unicode61 table silently breaks short CJK queries.
+  return fts !== undefined && fts.sql.toLowerCase().includes("trigram");
 }
 
 function removeDatabaseFiles(dbPath: string): void {
@@ -299,6 +301,33 @@ function escapeFtsQuery(query: string): string {
   return `"${query.replaceAll('"', '""')}"`;
 }
 
+const CJK_RUN_RE = /\p{Script=Han}+/gu;
+
+function hasShortCjkRun(query: string): boolean {
+  for (const match of query.matchAll(CJK_RUN_RE)) {
+    if ([...match[0]].length < 3) return true;
+  }
+  return false;
+}
+
+function normalizeQuery(query: string): string {
+  return query.normalize("NFKC").trim();
+}
+
+function escapeLike(value: string): string {
+  return value.replace(/[\\%_]/g, (char) => `\\${char}`);
+}
+
+function makeSnippet(body: string, tokens: string[]): string {
+  const lowered = body.toLowerCase();
+  const first = tokens.find((token) => lowered.includes(token.toLowerCase()));
+  if (!first) return body.slice(0, 80);
+  const index = lowered.indexOf(first.toLowerCase());
+  const start = Math.max(0, index - 20);
+  const end = Math.min(body.length, index + first.length + 40);
+  return `${start > 0 ? "… " : ""}${body.slice(start, index)}[${body.slice(index, index + first.length)}]${body.slice(index + first.length, end)}${end < body.length ? " …" : ""}`;
+}
+
 function safeParseHeadings(value: string): MarkdownHeading[] {
   try {
     const parsed = JSON.parse(value) as MarkdownHeading[];
@@ -308,27 +337,82 @@ function safeParseHeadings(value: string): MarkdownHeading[] {
   }
 }
 
+interface SearchRow {
+  id: string;
+  path: string;
+  title: string;
+  type: string;
+  status: string;
+  headings_json: string;
+  tags: string;
+  snippet: string;
+  rank: number;
+}
+
 export function searchNotes(db: DatabaseHandle, query: string, options: SearchOptions = {}): SearchResult[] {
+  const normalized = normalizeQuery(query);
   const requestedLimit = Number.isFinite(options.limit) ? Math.trunc(options.limit as number) : 10;
   const limit = Math.max(1, Math.min(requestedLimit, 50));
-  const params: unknown[] = [query];
-  let where = "notes_fts MATCH ?";
 
+  // Shared filters over the notes table (used by both query paths)
+  const filters: string[] = [];
+  const params: unknown[] = [];
   if (options.status) {
-    where += " AND n.status = ?";
+    filters.push("n.status = ?");
     params.push(options.status);
   } else {
-    where += " AND n.status != 'deleted'";
+    filters.push("n.status != 'deleted'");
   }
-
   if (options.type) {
-    where += " AND n.type = ?";
+    filters.push("n.type = ?");
     params.push(options.type);
   }
-
   if (options.tag) {
-    where += " AND EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id AND t.tag = ?)";
+    filters.push("EXISTS (SELECT 1 FROM tags t WHERE t.note_id = n.id AND t.tag = ?)");
     params.push(options.tag);
+  }
+  const baseFilters = filters.length > 0 ? ` AND ${filters.join(" AND ")}` : "";
+
+  const toResults = (rows: SearchRow[]) =>
+    rows.map(({ headings_json, ...row }) => ({
+      ...row,
+      tags: row.tags ? row.tags.split(",").filter(Boolean) : [],
+      outline: safeParseHeadings(headings_json),
+      graph: getGraphSummary(db, row.id),
+    }));
+
+  // The trigram tokenizer indexes CJK runs as single tokens, so 1-2 char
+  // queries can never match. Route those queries through LIKE substring
+  // search instead, with title matches ranked above path and body matches.
+  if (hasShortCjkRun(normalized)) {
+    const tokens = normalized.split(/\s+/).filter(Boolean);
+    if (tokens.length === 0) return [];
+
+    const tokenConditions = tokens
+      .map(() => `(n.title LIKE ? ESCAPE '\\' OR n.path LIKE ? ESCAPE '\\' OR n.body LIKE ? ESCAPE '\\')`)
+      .join(" AND ");
+    const likeParams = tokens.flatMap((token) => Array<string>(3).fill(`%${escapeLike(token)}%`));
+    const firstLike = `%${escapeLike(tokens[0])}%`;
+
+    const rows = db.prepare(`
+      SELECT
+        n.id,
+        n.path,
+        n.title,
+        n.type,
+        n.status,
+        n.headings_json,
+        n.body,
+        COALESCE((SELECT group_concat(t.tag, ',') FROM tags t WHERE t.note_id = n.id), '') AS tags
+      FROM notes n
+      WHERE ${tokenConditions}${baseFilters}
+      ORDER BY (n.title LIKE ? ESCAPE '\\') DESC, (n.path LIKE ? ESCAPE '\\') DESC, length(n.body), n.title
+      LIMIT ?
+    `).all(...likeParams, ...params, firstLike, firstLike, limit) as Array<SearchRow & { body: string }>;
+
+    return toResults(
+      rows.map(({ body, ...row }) => ({ ...row, rank: 0, snippet: makeSnippet(body, tokens) })),
+    );
   }
 
   const sql = `
@@ -341,40 +425,24 @@ export function searchNotes(db: DatabaseHandle, query: string, options: SearchOp
       n.headings_json,
       COALESCE((SELECT group_concat(t.tag, ',') FROM tags t WHERE t.note_id = n.id), '') AS tags,
       snippet(notes_fts, 3, '[', ']', ' … ', 24) AS snippet,
-      bm25(notes_fts) AS rank
+      bm25(notes_fts, 10.0, 8.0, 1.0, 4.0, 6.0) AS rank
     FROM notes_fts
     JOIN notes n ON n.id = notes_fts.note_id
-    WHERE ${where}
+    WHERE notes_fts MATCH ?${baseFilters}
     ORDER BY rank
     LIMIT ?
   `;
 
-  const run = (ftsQuery: string) =>
-    db.prepare(sql).all(...[ftsQuery, ...params.slice(1), limit]) as Array<{
-      id: string;
-      path: string;
-      title: string;
-      type: string;
-      status: string;
-      headings_json: string;
-      tags: string;
-      snippet: string;
-      rank: number;
-    }>;
+  const run = (ftsQuery: string) => db.prepare(sql).all(ftsQuery, ...params, limit) as SearchRow[];
 
   let rows;
   try {
-    rows = run(query);
+    rows = run(normalized);
   } catch {
-    rows = run(escapeFtsQuery(query));
+    rows = run(escapeFtsQuery(normalized));
   }
 
-  return rows.map(({ headings_json, ...row }) => ({
-    ...row,
-    tags: row.tags ? row.tags.split(",").filter(Boolean) : [],
-    outline: safeParseHeadings(headings_json),
-    graph: getGraphSummary(db, row.id),
-  }));
+  return toResults(rows);
 }
 
 export function getNote(db: DatabaseHandle, id: string, options?: { graphLimit?: number }) {
