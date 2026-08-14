@@ -58,7 +58,37 @@ function openDatabase(dbPath: string): DatabaseHandle {
   const db = new Database(dbPath);
   db.pragma("journal_mode = WAL");
   db.pragma("foreign_keys = ON");
+  // Multiple mdgraph processes can hold the same WAL database. Wait briefly
+  // (instead of failing immediately) while another process holds the write
+  // lock, and let write transactions retry on top of that window.
+  db.pragma("busy_timeout = 5000");
   return db;
+}
+
+const MAX_WRITE_ATTEMPTS = 5;
+
+/**
+ * Run a write transaction body, retrying while SQLite reports a busy/locked
+ * database (another process is mid-write). This turns transient contention
+ * into a short bounded wait instead of immediately surfacing
+ * "database is locked".
+ */
+export function withWriteRetry<T>(fn: () => T): T {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt += 1) {
+    try {
+      return fn();
+    } catch (error) {
+      const code =
+        typeof error === "object" && error !== null && "code" in error ? String((error as { code: unknown }).code) : "";
+      if (code === "SQLITE_BUSY" && attempt < MAX_WRITE_ATTEMPTS - 1) {
+        lastError = error;
+        continue;
+      }
+      throw error;
+    }
+  }
+  throw lastError;
 }
 
 function shouldRebuildDatabase(db: DatabaseHandle): boolean {
@@ -279,7 +309,7 @@ export function upsertNote(db: DatabaseHandle, note: ParsedNote, fileStat: fs.St
     `).run(note.id, note.title, note.path, note.body, note.tags.join(" "), note.aliases.join(" "));
   });
 
-  tx();
+  withWriteRetry(() => tx());
 }
 
 export function markDeleted(db: DatabaseHandle, relativePath: string): void {
@@ -294,7 +324,7 @@ export function markDeleted(db: DatabaseHandle, relativePath: string): void {
     }
     db.prepare("UPDATE files SET deleted = 1, indexed_at = CURRENT_TIMESTAMP WHERE path = ?").run(relativePath);
   });
-  tx();
+  withWriteRetry(() => tx());
 }
 
 function escapeFtsQuery(query: string): string {

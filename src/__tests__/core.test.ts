@@ -4,7 +4,7 @@ import fsp from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import Database from "better-sqlite3";
-import { getGraph, openDb, searchNotes, getNote, getStatus, markDeleted, CURRENT_SCHEMA_VERSION } from "../db.js";
+import { getGraph, openDb, searchNotes, getNote, getStatus, markDeleted, CURRENT_SCHEMA_VERSION, withWriteRetry } from "../db.js";
 import { syncVault, indexFile } from "../indexer.js";
 import { resolveDbPath, toRelativePath } from "../paths.js";
 import { updateNote, createNote } from "../mcp.js";
@@ -1551,5 +1551,47 @@ describe("mdgraph core behaviors", () => {
     } finally {
       close();
     }
+  });
+
+  // -----------------------------------------------------------------------
+  // 19. Write contention: retry on SQLITE_BUSY
+  // -----------------------------------------------------------------------
+  it("retries a write body that hit SQLITE_BUSY instead of throwing immediately", () => {
+    let calls = 0;
+    const result = withWriteRetry(() => {
+      calls += 1;
+      if (calls === 1) {
+        const busy = new Error("database is locked") as Error & { code: string };
+        busy.code = "SQLITE_BUSY";
+        throw busy;
+      }
+      return "committed";
+    });
+    expect(result).toBe("committed");
+    expect(calls).toBe(2);
+  });
+
+  it("rethrows after exhausting SQLITE_BUSY retries", () => {
+    let calls = 0;
+    expect(() =>
+      withWriteRetry(() => {
+        calls += 1;
+        const busy = new Error("database is locked") as Error & { code: string };
+        busy.code = "SQLITE_BUSY";
+        throw busy;
+      }),
+    ).toThrow("database is locked");
+    expect(calls).toBe(5);
+  });
+
+  it("lets non-busy errors propagate without retrying", () => {
+    let calls = 0;
+    expect(() =>
+      withWriteRetry(() => {
+        calls += 1;
+        throw new Error("duplicate note id");
+      }),
+    ).toThrow("duplicate note id");
+    expect(calls).toBe(1);
   });
 });
