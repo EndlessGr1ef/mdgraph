@@ -24,10 +24,11 @@ pnpm build
 
 - `src/cli.ts` wires CLI commands to the core modules.
 - `src/db.ts` owns SQLite schema, schema version checks, upserts, search, and status queries.
-- `src/indexer.ts` scans Markdown files and indexes/removes individual files.
+- `src/indexer.ts` scans Markdown files, indexes/removes individual files, and reconciles precise changed-path sets (`syncChangedFiles`), skipping unchanged files via (size, mtime) pre-filter with content-hash confirmation.
 - `src/parser.ts` parses frontmatter, body text, tags, aliases, dates, and links.
-- `src/watcher.ts` watches vault changes and calls the indexer.
-- `src/mcp.ts` exposes MCP tools for search, read, sync, create, and update.
+- `src/watcher.ts` batches vault change events with an adaptive debounce window and flushes precise paths to scoped sync; directory events and overflows fall back to a full sync.
+- `src/explore.ts` builds question-oriented exploration results with session-level dedup and pointer output.
+- `src/mcp.ts` exposes MCP tools for search, read, graph, sync, suggest_tags, create, update, and explore.
 - `src/paths.ts` centralizes vault-relative path handling and path escape checks.
 
 ## Data safety rules
@@ -55,21 +56,15 @@ Important behaviors already covered:
 - Notes are searchable by filename even when a frontmatter title is set (path is indexed in FTS).
 - Short CJK queries (1–2 chars) fall back to LIKE substring search, and full-width query characters are normalized.
 - Inline `#tags` in the body are merged into indexed tags (code blocks ignored); note creation derives tags deterministically when none are provided.
+- Watch mode batches events and syncs only the changed paths; directory events and >500 pending paths fall back to a full sync.
+- Unchanged files are not re-parsed (stat pre-filter + content-hash confirmation); orphan rows for deleted paths are removed in scoped sync.
+- Scoped sync rejects paths outside the vault root and paths matched by ignore rules.
+- An unmet full-scan demand survives an in-flight flush (scheduling decisions are pure functions under test).
+- `mdgraph_explore_notes` pointerizes only byte-identical already-served notes, re-serves edited ones, and its session store is bounded.
 
 ## Git hygiene
 
 - Commit messages should use Conventional Commits.
 - Do not commit `.mdgraph/*.db`, WAL/SHM files, generated `dist/`, or files under `html/`.
 - Do not include AI signatures in commits.
-
-## Magic Context and mdgraph coexistence rules
-
-This project uses both Magic Context and mdgraph MCP.
-
-- mdgraph is the single source of truth for project tasks, requirements, decisions, plans, and status.
-- Magic Context is only for session context compression, history recall, and auxiliary memory.
-- When Magic Context recalled information conflicts with mdgraph, mdgraph takes precedence.
-- Any task status change, requirement confirmation, architecture decision, TODO, milestone, or bug conclusion must be written to mdgraph.
-- Do not treat Magic Context project memory as the final project status.
-- Do not let Magic Context or dreamer automatically maintain Markdown files managed by mdgraph.
 - To persist conversation summaries, prefer calling mdgraph MCP to write to the corresponding Markdown node.

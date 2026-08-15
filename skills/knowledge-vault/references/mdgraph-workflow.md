@@ -15,16 +15,20 @@ pnpm dev --vault "<path-to-vault>" watch
 OpenCode starts MDGraph as an MCP server. Available tools:
 
 ```
-mdgraph_status       — index health, tag distribution
-mdgraph_search       — full-text search (query, limit, tag?, type?, status?)
-mdgraph_get_note     — get full note body + outline + 1-hop graph
-mdgraph_get_graph    — configurable graph around a root note
-mdgraph_sync         — force re-index after bulk changes
-mdgraph_create_note  — create Markdown and index (won't overwrite)
-mdgraph_update_note  — update Markdown and reindex
+mdgraph_status         — index health, tag distribution
+mdgraph_search         — full-text search (query, limit, tag?, type?, status?)
+mdgraph_get_note       — get full note body + outline + 1-hop graph
+mdgraph_get_graph      — configurable graph around a root note
+mdgraph_sync           — force re-index after bulk changes
+mdgraph_suggest_tags   — deterministic tag suggestions for a note
+mdgraph_create_note    — create Markdown and index (won't overwrite)
+mdgraph_update_note    — update Markdown and reindex
+mdgraph_explore_notes  — question-oriented context: full answer notes + pointers + session dedup
 ```
 
-If a note was just created outside the agent and search results look stale, call `mdgraph_sync` once.
+Tool choice: use `mdgraph_explore_notes` when starting from a question/topic (it returns ready-to-use context and won't repeat content already served in the session); use `mdgraph_search` for precise lookups by title/tag/id or when you need raw ranked results.
+
+If a note was just created outside the agent and search results look stale, call `mdgraph_sync` once (normally unnecessary — the watcher syncs changed files within a second via precise-path scoped sync).
 
 ## .mdgraphignore
 

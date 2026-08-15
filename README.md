@@ -10,9 +10,11 @@ MDGraph treats Markdown files as the source of truth and keeps a disposable SQLi
 - Parse frontmatter, tags, aliases, dates, and wiki/Markdown links
 - Search notes with SQLite FTS5 trigram search (matches title, path/filename, body, tags, and aliases)
 - Extract Markdown heading outlines and include them in read/search results
-- Watch vault changes and keep the index fresh
+- Watch vault changes and keep the index fresh (batched events, adaptive debounce, precise-path scoped sync)
+- Skip re-parsing unchanged files via (size, mtime) pre-filter with content-hash confirmation
 - Ignore templates and user-configured paths with `.mdgraphignore`
 - Expose notes through an MCP server for AI agents
+- Explore notes question-first: full answer notes, pointer lists for related material, session-level dedup
 - Create and update notes while preserving Markdown as the truth source
 - Rebuild incompatible SQLite indexes automatically from Markdown
 
@@ -50,14 +52,18 @@ The MCP server exposes:
 - `mdgraph_get_note`
 - `mdgraph_get_graph`
 - `mdgraph_sync`
+- `mdgraph_suggest_tags`
 - `mdgraph_create_note`
 - `mdgraph_update_note`
+- `mdgraph_explore_notes`
 
 `mdgraph_search` returns metadata, a highlighted snippet, the note `outline` extracted from Markdown headings, and a compact graph summary with link counts and previews. `mdgraph_get_note` returns the full cached body, the same `outline`, and bounded 1-hop graph context: outlinks, backlinks, broken links, ambiguous links, and total counts.
 
 `mdgraph_get_graph` returns a configurable linked-note graph around a root note. It supports `depth`, `direction` (`out`, `back`, or `both`), and `maxNodes`.
 
 `mdgraph_create_note` refuses to overwrite existing files. `mdgraph_update_note` updates the Markdown file first, then refreshes the SQLite index.
+
+`mdgraph_explore_notes` builds question-oriented context: the top `maxNotes` (default 3, clamped 2-5) matches are served in full, the next 10 as one-line pointers, and weak matches get a low-confidence footnote. Within a session, notes already served byte-identical are replaced by pointers (edited notes are re-served in full); the dedup store is bounded, in-memory only, and never persisted.
 
 ## Data model
 
@@ -120,11 +126,13 @@ Core source files:
 
 - `src/cli.ts` — CLI commands
 - `src/db.ts` — SQLite schema, version checks, queries
-- `src/indexer.ts` — vault scan and per-file indexing
+- `src/indexer.ts` — vault scan, per-file indexing, scoped sync with unchanged-file skipping
 - `src/ignore.ts` — built-in and `.mdgraphignore` rules
 - `src/parser.ts` — Markdown/frontmatter/link parsing
-- `src/watcher.ts` — chokidar integration
+- `src/watcher.ts` — chokidar integration with batched, adaptive-debounce syncing
+- `src/explore.ts` — question-oriented exploration with session dedup
 - `src/mcp.ts` — MCP tools
+- `src/__tests__/` — vitest suites (core, sync-scoped, sync-hardening, explore)
 
 ## Git ignore notes
 
