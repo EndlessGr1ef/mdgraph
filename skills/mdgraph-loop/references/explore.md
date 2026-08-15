@@ -27,7 +27,7 @@ Write down what the next phase must know before moving forward:
 Use the smallest evidence set that covers the required context:
 
 - source code, call chains, and impact → codegraph
-- prior task history and project notes → mdgraph
+- prior task history and project notes → mdgraph (`mdgraph_explore_notes` is the question-oriented entry point; fall back to `mdgraph_search` for precise id/title/tag lookups)
 - logs, diffs, or local artifacts → repo files and notes
 - external docs or API behavior → external docs only when local evidence is insufficient
 

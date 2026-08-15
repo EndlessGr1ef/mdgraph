@@ -18,7 +18,7 @@ Local Markdown knowledge vault for long-term memory. Markdown files are the dura
 > - Vault root: `<vault-root>/` with 5 directories: `00_inbox/`, `10_tasks/`, `20_research/`, `30_knowledge/`, `90_archive/`
 > - Timestamp prefix (`yyyymmdd_hhmmss_`) for inbox/agent tasks/research/archive; semantic names for `30_knowledge/`
 > - Every note needs a stable `id`, a non-empty `type`, and at least one `tag`
-> - MDGraph indexes notes; `mdgraph_*` MCP tools for search/create/update
+> - MDGraph indexes notes; `mdgraph_*` MCP tools for search/explore/create/update
 
 ## When to use
 

@@ -17,6 +17,7 @@ Under `30_knowledge/`:
 30_knowledge/projects/
 30_knowledge/people/
 30_knowledge/tools/
+30_knowledge/daily/    # dated recurring analysis (e.g. daily a-stock reviews)
 ```
 
 ## Naming Rules
