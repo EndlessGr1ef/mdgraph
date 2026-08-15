@@ -6,6 +6,7 @@ import { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js";
 import { z } from "zod";
 import { getGraph, getNote, getStatus, openDb, searchNotes } from "./db.js";
+import { exploreNotes, ServedNotesStore } from "./explore.js";
 import { indexFile, syncVault, type SyncResult } from "./indexer.js";
 import { assertInsideVault, resolveVaultRoot, toRelativePath } from "./paths.js";
 import { deriveTags, normalizeTags } from "./tags.js";
@@ -90,6 +91,29 @@ export async function updateNote(db: DatabaseHandle, vaultRoot: string, input: U
   return { success: true, id: note.id, path: toRelativePath(vaultRoot, targetPath) };
 }
 
+/**
+ * Register the `mdgraph_explore_notes` tool on a server against a per-session
+ * served-store. Extracted so the registration and its input schema can be
+ * tested without driving a stdio transport.
+ */
+export function registerExploreNotesTool(
+  server: McpServer,
+  db: DatabaseHandle,
+  servedNotes: ServedNotesStore,
+): void {
+  server.tool(
+    "mdgraph_explore_notes",
+    "Explore the vault for a question: returns the top few matching notes in full as 'answer notes' plus one-line pointers (id, title, path, tags) to related or weaker matches. A note already served unchanged earlier in this conversation is returned as a pointer line instead of its full body (session-level dedup). Use this for open-ended, question-oriented exploration across many notes; for a single known id prefer mdgraph_get_note.",
+    {
+      query: z.string().min(1),
+      maxNotes: z.number().int().min(2).max(5).optional(),
+    },
+    async ({ query, maxNotes }) => {
+      return jsonResult(exploreNotes(db, query, { maxNotes, served: servedNotes }));
+    },
+  );
+}
+
 export async function createNote(
   db: DatabaseHandle,
   vaultRoot: string,
@@ -125,6 +149,9 @@ export async function startMcpServer(vault?: string): Promise<void> {
   const vaultRoot = resolveVaultRoot(vault);
   const store = openDb(vaultRoot);
   const server = new McpServer({ name: "mdgraph", version: "0.1.0" });
+  // Per-session, bounded record of notes served in full (used by
+  // mdgraph_explore_notes dedup). In process memory only; never persisted.
+  const servedNotes = new ServedNotesStore();
   let syncInProgress: Promise<SyncResult> | undefined;
   let lastSync:
     | {
@@ -204,6 +231,8 @@ export async function startMcpServer(vault?: string): Promise<void> {
     const result = await runSync();
     return jsonResult(result);
   });
+
+  registerExploreNotesTool(server, store.db, servedNotes);
 
   server.tool(
     "mdgraph_suggest_tags",
