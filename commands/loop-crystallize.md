@@ -1,5 +1,5 @@
 ---
-description: "Crystallize: Close task, persist knowledge, update task status"
+description: "Crystallize: close task, persist knowledge, update task status"
 ---
 
 Load `mdgraph-loop`. The user wants to enter Crystallize phase.

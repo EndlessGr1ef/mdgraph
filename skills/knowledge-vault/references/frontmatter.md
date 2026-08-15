@@ -46,6 +46,14 @@ cancelled    # intentionally stopped before completion
 archived     # archived, no longer active
 ```
 
+mdgraph-loop task records use the lifecycle values above plus three workflow-control extensions:
+
+```
+paused       # loop: task paused mid-phase, resumable
+blocked      # loop: state conflict or unsafe write; requires explicit repair
+aborted      # loop: task intentionally cancelled
+```
+
 Do not encode lifecycle into `type`. Use `type: research` + `status: archived` instead of `type: research-archive`.
 
 ## OKF-Inspired Conventions

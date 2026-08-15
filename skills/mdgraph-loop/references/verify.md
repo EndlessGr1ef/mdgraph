@@ -1,51 +1,50 @@
 ---
 name: mdgraph-loop-verify
-description: Verify phase — check success criteria, reconcile review findings, and document convergence.
+description: Verify phase — map success criteria, run unit/integration tests for code projects, decide convergence.
 ---
 
 # Verify Phase (`/loop-verify`)
 
-Check the work against the task goal and success criteria.
+Check the work against the goal and success criteria.
 
 ## 1. Review checklist
 
 Review the relevant artifact against:
 
-- task goal
-- implementation for execution routes
-- findings, diff, and impact scope for review routes
-- plan and PRD decisions when Plan was applicable
-- constraints
-- success criteria
+- task goal and success criteria
+- `plan.md` decisions, verification criteria, and rejected alternatives
+- implementation and diff for execution tasks
+- findings and evidence for non-execution tasks
+- constraints and risks
 
-## 2. Review depth
+For execution tasks, use a separate agent invocation from the one that implemented (Subagent Policy in SKILL.md).
 
-Apply the Subagent Policy defined in SKILL.md. For code-changing routes, the verifier must not be the same agent that performed Execute.
+## 2. Tests for code projects
 
-- adversarial review for risky work
-- direct checklist for straightforward work
+When the task changes code outside the vault:
+
+- Identify the project's test commands from its manifest (package.json, Makefile, etc.). Do not assume a command exists.
+- Run unit tests (UT) and record command + result.
+- Run integration tests (IT) when they exist and are within the approved scope; if none exist, say so explicitly and count it as a residual risk.
+- Map each test result to the success criteria it covers.
+- Tests are evidence, not a substitute for review: for risky work add adversarial or manual checks.
 
 ## 3. Success criteria mapping
 
-Map each check to a success criterion and record the result.
+Map every check and test result to a success criterion in `progress.md`.
 
-## 4. Convergence evidence report
+## 4. Convergence report
 
-Write the verification report into `progress.md` under `## Verification`. Include:
+Write into `progress.md` `## Verification`:
 
-- checks run
+- checks run and results (including UT/IT)
 - evidence observed
+- success-criteria mapping
 - open gaps
 - convergence decision: `yes` or `no`
-- if `no`, the required action selected by the Verification Loopback rules in references/workflow.md
+- if `no`: required action from Verification Loopback in `references/workflow.md`
 - residual risks
-
-If converged, proceed to close and set `phase` to Crystallize.
-
-If not converged, apply the Verification Loopback rules defined in references/workflow.md.
 
 ## 5. Close
 
-Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Only close when convergence is `yes`. Apply the Phase Transition rules in references/workflow.md to close this phase and advance to Crystallize.
-
-When convergence is `no`, do not close. Apply the loopback procedure in section 4 instead.
+Convergence `yes` → apply Phase Transition to Crystallize. Convergence `no` → do not close; apply the loopback procedure in `references/workflow.md`.

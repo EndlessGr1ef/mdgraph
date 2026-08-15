@@ -1,5 +1,5 @@
 ---
-description: "Verify: Run tests/lint/typecheck, review, confirm convergence"
+description: "Verify: map success criteria, run unit/integration tests, decide convergence"
 ---
 
 Load `mdgraph-loop`. The user wants to enter Verify phase.

@@ -1,67 +1,50 @@
 ---
 name: mdgraph-loop-execute
-description: Execute phase — implement the approved plan and log progress.
+description: Execute phase — confirm scope with the user, then implement via subagents.
 ---
 
 # Execute Phase (`/loop-execute`)
 
-Route guard: if the task route is `non-execution`, this phase must never be entered. See route definitions in SKILL.md and loopback rules in references/workflow.md. Set task status `blocked`. Restore: set Execute status to `N/A` in Phase Progress. If a unique valid route phase (Explore, Verify, or Crystallize) is already `in_progress`, restore frontmatter `phase` to it. Otherwise leave `blocked` for explicit repair — do not point `phase` at a completed or `N/A` phase. Stop.
+Guard: if Execute is `N/A` in `## Phase Progress`, this phase must never be entered. Set task `blocked`, set Execute back to `N/A`, restore the previous valid phase if exactly one is `in_progress`; otherwise leave `blocked` for explicit repair. Stop.
 
-Implement the approved plan and keep the progress note current.
+Execute runs only after Prepare and only with explicit user confirmation.
 
 ## 1. Confirmation gate (mandatory)
 
-Before any implementation begins, present a concise execution summary to the user:
+Before any implementation, present a concise summary and wait:
 
-- What will be done (high-level tasks)
-- Which files will change
-- Risk areas
+- what will be done (ordered high-level tasks)
+- which files will change
+- risk areas
+- test plan: unit tests, and integration tests when applicable
 
-Use the OpenCode `question` tool with these options:
+Offer the choices: confirm and execute / revise plan / abort. Use the host's interactive question mechanism when available; otherwise present the summary as a plain message and wait for explicit confirmation.
 
-- `Confirm and execute` — proceed with implementation
-- `Revise plan` — user wants changes to the plan before proceeding
-- `Abort` — cancel the task
+- `Revise plan`: apply the `Revise plan` transition in `references/workflow.md`.
+- `Abort`: apply the `abort` command in `references/workflow.md`.
 
-If the user chooses `Revise plan`, apply the route-specific Revise plan transition defined in references/workflow.md Phase Transition commands.
+Do not implement until the user explicitly confirms. This gate replaces auto-advance for the first Execute entry of a confirmed scope; re-entry within an already confirmed scope follows the loopback rules in `references/workflow.md`.
 
-Do not proceed to implementation until the user chooses `Confirm and execute`. This gate replaces auto-advance for the first Execute entry.
+## 2. Load state
 
-## 2. Always delegate
+Read `progress.md` and `plan.md` before starting.
 
-The main agent never writes code. Spawn a subagent for every implementation unit. Select the agent by capability for the work size:
+## 3. Always delegate
 
-- Single file change: focused implementation agent.
-- Multiple files: parallel-writing or deep-work agent.
-- Context gathering: exploratory research agent.
-
-While subagents write, the main agent reads ahead, updates progress, or reviews completed output.
-
-## 3. Load state
-
-Read `progress.md`, `task_plan.md`, and `findings.md` before starting.
+The main agent never writes code. Spawn a subagent for each implementation unit, selected by capability and work size (single file → focused agent; multiple files → parallel-writing or deep-work agent). While subagents write, the main agent updates progress and reviews completed output.
 
 ## 4. Execute tasks
 
-Work through the ordered plan items. Log meaningful progress after each step.
+Work through `plan.md` ordered tasks. Log meaningful progress in `progress.md` after each step. Keep the main agent on orchestration and review.
 
-Keep the main agent's context on orchestration and review; push implementation details into subagents.
+## 5. Failed attempts
 
-## 5. Failed attempt behavior
-
-If a step fails:
-
-- record the failure in the progress note
-- adjust the approach before retrying
-- do not repeat the same failed action immediately
+On failure: record it in `progress.md`, adjust the approach, and do not repeat the same failed action immediately.
 
 ## 6. Close criteria
 
-- All implementation tasks from `task_plan.md` complete.
-- Progress logged for each step.
-- Failures recorded and resolved.
-- `progress.md`, `findings.md`, and `task_plan.md` updated.
+- All tasks from `plan.md` complete.
+- Progress logged per step; failures recorded and resolved.
+- `progress.md` and `plan.md` updated.
 
-Convergence review is the responsibility of the Verify phase — do not duplicate it here.
-
-Update `progress.md`, `findings.md`, and `task_plan.md` as needed. Apply the Phase Transition rules in references/workflow.md.
+Convergence review belongs to Verify — do not duplicate it here. Apply the Phase Transition rules in `references/workflow.md`.

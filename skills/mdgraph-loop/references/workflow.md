@@ -1,6 +1,6 @@
 ---
 name: mdgraph-loop-workflow
-description: Complete state machine rules for mdgraph-loop. Read before entering any phase.
+description: Complete state machine rules for mdgraph-loop. Read before creating or resuming any task.
 ---
 
 # Workflow
@@ -12,98 +12,79 @@ description: Complete state machine rules for mdgraph-loop. Read before entering
 **Frontmatter** owns task-level state:
 - `status`: `in_progress`, `paused`, `blocked`, `aborted`, `done`
 - `phase`: current active phase name
-- `route`: one of the three named routes
 
-**Phase Progress table** (body section) owns per-phase status and completion:
-- `pending`, `in_progress`, `complete`, `skipped`, `N/A`
-- Completion date recorded in the `Completed` column
+**Phase Progress table** owns per-phase status:
+- `pending`, `in_progress`, `complete`, `N/A`
+- Completion requires a `YYYY-MM-DD` date in the `Completed` column.
 
-While `status` is `in_progress` or `paused`, exactly one route phase is `in_progress` and frontmatter `phase` equals it.
-When `status` is `done`, no route phase is `in_progress` and frontmatter `phase` remains `Crystallize`.
-Completion requires close criteria, `complete` status, and a `YYYY-MM-DD` completion date.
+Invariants:
+- While task `status` is `in_progress` or `paused`, exactly one phase is `in_progress` and frontmatter `phase` equals it.
+- When task `status` is `done`, no phase is `in_progress` and frontmatter `phase` is `Crystallize`.
+- `plan.md` never determines task or phase state.
 
-Supporting notes (`findings.md`, `task_plan.md`) never determine task or phase state. Only `progress.md` frontmatter and Phase Progress are authoritative.
+Phase order: Init → Prepare → Execute → Verify → Crystallize. Execute is `N/A` when the task does not change files outside the vault; every other non-`N/A` phase is mandatory.
 
 ## Task Selection and Resume
 
-1. If the user provides an explicit task ID or path, use it.
-2. Otherwise, search mdgraph for `type: agent_task` + `tag: "agent-task"` + `status: in_progress`. Accept only records whose path matches `*/progress.md`. If exactly one matches the current context, select it.
-3. If none are `in_progress`, search for `type: agent_task` + `tag: "agent-task"` + `status: paused`. Accept only records whose path matches `*/progress.md`. If exactly one matches, offer to resume it.
-4. If multiple match at any step, ask the user to choose.
-5. If none match, create a new task with `/loop-init`.
+1. If the user gives a task id or path, use it.
+2. Otherwise search mdgraph with filters `type: agent_task`, `tag: agent-task`, `status: in_progress` (then `paused`). Accept only records whose path ends with `/progress.md`. If exactly one matches the current context, select it.
+3. If more than one matches, ask the user to choose.
+4. If none match, start a new task with `/loop-init`.
 
-Never use body content from supporting notes (`findings.md`, `task_plan.md`) for task or phase state.
-Never select the first search result solely because it is active.
+Never select a result only because it is active. Never infer state from `plan.md`.
 
-If exactly one route phase is `in_progress` and frontmatter `phase` matches it, resume that phase.
-If no route phase is `in_progress`: pick the earliest route phase whose status is `pending`, set it `in_progress`, update frontmatter `phase`, persist `progress.md`, then resume that phase. If no route phase has `pending` status, set task status `blocked` and require explicit repair.
-If multiple phases are `in_progress` or frontmatter `phase` does not match the sole `in_progress` phase: stop, set task status `blocked`, report the conflict, and require explicit state repair. Do not auto-select or mutate dates.
-If a phase has `complete` status with no completion date, or `in_progress` status with a completion date: stop and repair before continuing.
+### Legacy tasks
+
+Tasks created before 2026-08 may use the old six-phase table (Explore/Plan rows), a `route` frontmatter field, or `findings.md`/`task_plan.md` files. If a selected task uses that vocabulary, do not auto-resume it: report the difference and ask whether to migrate or start a new task. Migration replaces the Explore and Plan rows with one Prepare row — `in_progress` if either legacy phase is `in_progress`, otherwise `complete` (later date) if both are done, otherwise `pending` — and drops the old `route` field. Never modify old records silently.
+
+Then, using only `progress.md`:
+- Exactly one phase `in_progress` and frontmatter `phase` matches → resume that phase.
+- No phase `in_progress` → set the earliest `pending` phase to `in_progress`, update frontmatter `phase`, persist, then load that phase reference.
+- Multiple phases `in_progress`, or frontmatter `phase` mismatches the sole `in_progress` phase → set task `blocked`, report the conflict, and stop for explicit repair.
+- A phase marked `complete` without a date, or `in_progress` with a date → set task `blocked` and repair before continuing.
 
 ## Phase Transition
 
+Before closing any phase, re-check its close criteria against the latest state (restart check).
+
 On close:
-- Set the closing phase status to `complete` and record its completion date.
-- Check `loopback_return` in progress.md frontmatter. If present: skip the normal next-phase transition. Set frontmatter `phase` to the `loopback_return` value and set that phase status to `in_progress`. Clear `loopback_return`. Persist `progress.md`. Load the `loopback_return` phase reference. Stop — do not proceed to the normal next-phase advance below.
-- Set the next route phase status to `in_progress`.
-- Update frontmatter `phase` to the new phase.
-- Persist `progress.md`.
-- Load the next phase reference.
+1. Set the closing phase to `complete` with completion date.
+2. If `loopback_return` is present in frontmatter: set frontmatter `phase` to that value, set that phase to `in_progress`, clear `loopback_return`, persist, load that phase reference, and stop — do not continue to the normal advance.
+3. Otherwise set the next phase in the fixed order whose status is `pending` to `in_progress` (skipping `N/A` phases), update frontmatter `phase`, persist, and load the next phase reference.
 
-Close criteria are phase-specific (defined in each reference).
-
-Auto-advance to the next phase unless:
-- The next phase is the first Execute of the task. The Execute confirmation gate (defined in references/execute.md) replaces auto-advance — present the summary and wait for user choice before implementing.
-- Scope expansion is required.
-- A blocking decision is required.
+Auto-advance to the next phase unless the next phase is Execute. Entering Execute is always gated by the Execute confirmation protocol (`references/execute.md`) — never implement before explicit confirmation. Scope expansion or a blocking decision also pauses auto-advance.
 
 ### Commands
 
-- `stop`: set task status `paused`, persist, stop.
-- `abort`: set task status `aborted`, persist, stop.
-- `skip`: only for a phase that is optional in the selected route (Explore and/or Plan in `implementation-planned`; Explore in `non-execution`). Set that phase status to `skipped` with a date, select the next route phase whose status is `pending`, set it `in_progress`, update frontmatter `phase`, persist `progress.md`. Mandatory route phases (Init, Execute, Verify, Crystallize) cannot be skipped. In `implementation-simple` no optional phase exists — `skip` is unavailable.
-- `Revise plan`: chosen at the Execute confirmation gate. Behavior depends on route:
-  - `implementation-simple`: edit the minimum `task_plan.md` items requested, keep Execute `in_progress`, re-present the confirmation gate.
-  - `implementation-planned`: set Execute back to `pending`, reopen Plan as `in_progress`, clear Plan's completion date, update frontmatter `phase` to Plan, persist, load Plan reference, then return to gate after Plan completes.
-- Resuming a paused task: set task status back to `in_progress` before phase work.
+- `stop`: set task `paused`, persist, stop.
+- `abort`: set task `aborted`, persist, stop.
+- `Revise plan` at the Execute gate: set Execute to `pending` and clear its completion date if present; reopen Prepare as `in_progress` (clear its completion date); set `loopback_return: Execute`; update frontmatter `phase` to Prepare; persist; load `references/prepare.md`. After Prepare closes, the loopback returns to Execute and the gate is presented again.
+- Resuming a paused task: set task `status` back to `in_progress` before phase work.
+
+No `skip` command: every non-`N/A` phase is mandatory. The Execute yes/no decision is made once in Init.
 
 ## Verification Loopback
 
-When convergence is `no`, first choose the target phase based on route and failure type. Do not reset Verify before this choice.
+When convergence is `no`, choose the target by failure type before changing any status:
 
-| Route | Failure type | Action |
-|-------|-------------|--------|
-| `implementation-simple` | Missing evidence, no code fix | Keep Verify `in_progress`. Gather evidence within Verify. Do not reopen any phase. |
-| `implementation-simple` | Artifact fix needed | Verify → `pending`. Execute → `in_progress` with cleared completion date. Record `loopback_return: Verify` in progress.md frontmatter. |
-| `implementation-planned` | Missing evidence | Verify → `pending`. Explore → `in_progress` with cleared completion date. Record `loopback_return: Verify` in progress.md frontmatter. |
-| `implementation-planned` | Artifact fix needed | Verify → `pending`. Execute → `in_progress` with cleared completion date. Record `loopback_return: Verify` in progress.md frontmatter. |
-| `non-execution` | Missing evidence | Verify → `pending`. Explore → `in_progress` with cleared completion date. Record `loopback_return: Verify` in progress.md frontmatter. |
-| `non-execution` | Artifact change needed | Keep current task `blocked` with Verify as its recorded phase. Create a new implementation task. Never enter Execute. |
+| Task type | Failure type | Action |
+|-----------|--------------|--------|
+| Execution task | Missing evidence / plan gap | Verify → `pending`; Prepare → `in_progress` (clear date); `loopback_return: Verify` |
+| Execution task | Artifact fix needed | Verify → `pending`; Execute → `in_progress` (clear date); `loopback_return: Verify` |
+| Non-execution task | Missing evidence | Verify → `pending`; Prepare → `in_progress` (clear date); `loopback_return: Verify` |
+| Non-execution task | Artifact change outside vault needed | Keep task `blocked` with frontmatter `phase` left as Verify; create a new execution task; never enter Execute here |
 
-For all table rows that reopen a phase, update frontmatter `phase` to that phase, persist `progress.md`, and retain prior evidence — do not discard.
+For every reopen: update frontmatter `phase` to the reopened phase, persist, and retain prior evidence — do not discard it. A reopened phase's close checks `loopback_return` and returns directly to Verify instead of the normal next phase. When Verify is entered (including loopback re-entry), clear any leftover `loopback_return`.
 
-When a phase is reopened via a loopback row, its Close must check `loopback_return` in progress.md frontmatter:
-- If present, return directly to that phase instead of following the normal next-phase transition.
-- Clear `loopback_return` from progress.md frontmatter when acting on it.
-
-When Verify is entered (including on loopback re-entry), clear any `loopback_return` field from progress.md frontmatter.
-
-Execute re-entry within confirmed scope needs no new confirmation gate. Scope expansion does.
+Execute re-entry within confirmed scope needs no new confirmation. Scope expansion does.
 
 ## MCP Fallback
 
-When MCP is unavailable:
 1. Use the resolved vault root and filesystem tools for Markdown discovery and persistence.
-2. Persist canonical progress before crossing any phase boundary.
-3. If safe write is impossible: leave the current phase unchanged, set task status `blocked` when possible, and stop.
-4. Never continue with memory-only state.
+2. After filesystem writes, run `mdgraph_sync`.
+3. Persist canonical `progress.md` before crossing any phase boundary.
+4. If a safe write is impossible, leave the current phase unchanged, set task `blocked` when possible, and stop. Never continue with memory-only state.
 
 ## Crystallize Terminal Close
 
-Crystallize is terminal — it has no next phase. On close:
-- Mark Crystallize `complete` with date.
-- Phase remains `Crystallize` — do not advance.
-- Set task status `done`.
-- Persist `progress.md`.
-
-Do not invoke the ordinary Phase Transition for Crystallize close.
+Crystallize is terminal — no next phase. On close: mark Crystallize `complete` with date, keep frontmatter `phase` as Crystallize, set task `status` `done`, persist. Do not invoke the ordinary Phase Transition.

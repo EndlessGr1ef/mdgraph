@@ -1,5 +1,5 @@
 ---
-description: "Execute: Implement changes via subagents, write code"
+description: "Execute: confirm scope with the user, implement via subagents"
 ---
 
 Load `mdgraph-loop`. The user wants to enter Execute phase.

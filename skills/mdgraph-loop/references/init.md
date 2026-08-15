@@ -1,49 +1,45 @@
 ---
 name: mdgraph-loop-init
-description: Init phase — create the task cluster, classify the route, and set initial phase progress.
+description: Init phase — frame the task, decide whether Execute applies, and create the progress note.
 ---
 
 # Init Phase (`/loop-init`)
 
-Create the task spine, classify the work, and initialize the note cluster.
+Create the task record and initialize the state machine.
 
 ## 1. Problem framing
 
 - Read the user request.
-- Check project-level `AGENTS.md` for any work-type keyword hints.
-- If the request is unclear, use an available question tool or a concise inline prompt to reframe and resolve ambiguity. Otherwise proceed without confirmation.
-- Decide the route before creating notes.
+- Check project-level `AGENTS.md` for work-type hints, but they never override the task itself.
+- If the request is unclear, ask a clarifying question using the host's interactive question mechanism, or a plain message when none exists. Otherwise proceed without confirmation.
 
-## 2. Create files
+## 2. Decide whether Execute applies
 
-Create one timestamped task folder under `10_tasks/` and create these notes inside it (copy from `templates/` in the skill directory):
+Answer one binary question for yourself before creating files: **does this task change files outside the vault** (repo code, config, docs, or other artifacts)? Only ask the user if the answer is genuinely unclear.
 
-- `progress.md` — from `templates/progress.md`, replacing placeholder frontmatter values (id, title, phase, status, route, tags, created, updated) with actual task values.
-- `findings.md` — from `templates/findings.md`
-- `task_plan.md` — from `templates/task_plan.md`. For `implementation-simple` route, populate Goal, Approach, Ordered Tasks, Files Involved, Risks, and Verification Criteria from the route decision before close.
+- yes → Execute is part of the flow and starts `pending`.
+- no (research, review, investigation, or vault-only writing) → Execute is `N/A` and must never be entered.
 
-`progress.md` is the canonical task record. It owns: phase, status, goal, scope, constraints, success criteria, phase progress, decisions, result.
+This is the only routing decision. Do not invent additional route categories.
 
-## 3. Route record
+## 3. Create the task record
 
-Add `route: <route-name>` to progress.md frontmatter. The route determines which phases are active and which are `N/A`.
+- Create one timestamped folder under `10_tasks/`.
+- Create `progress.md` from `templates/progress.md`, replacing placeholder frontmatter (id, title, description, phase, status, tags, created, updated) with actual values. No `route` field.
+- Prefer `mdgraph_create_note`. Filesystem fallback: write the file, then run `mdgraph_sync`.
+- Fill `## Goal`, `## Scope`, `## Constraints`, `## Success Criteria`.
+- Set `## Phase Progress`: Init `in_progress`; Prepare `pending`; Execute `pending` or `N/A` from section 2; Verify `pending`; Crystallize `pending`. Write exactly one status per phase.
 
-## 4. Initial phase progress
+`progress.md` is the canonical task record. `plan.md` is created later in Prepare, only when needed.
 
-- Mark phases that are not in the route as `N/A`.
-- Mark phases in the route as `pending`.
-- Mark Init as `in_progress` with no completion date.
-- Leave Crystallize as `pending` because it is always applicable.
-- Do not write combined placeholder values such as `pending / N/A` into the real task note; choose exactly one allowed status per phase.
+## 4. Related task discovery
 
-## 5. Related task discovery
+Search mdgraph for related tasks (`mdgraph_search`, project/feature keywords). Reuse existing context when useful; add only relevant links, not broad dumps.
 
-Search for related active tasks and reuse existing context when useful. Add only relevant links, not broad dumps.
+## 5. Close criteria
 
-## 6. Close criteria
+- Execute yes/no decided and reflected in Phase Progress (`pending` vs `N/A`).
+- `progress.md` created with goal, scope, constraints, and success criteria.
+- Phase Progress matches the decision.
 
-- Route is decided and recorded in `progress.md` frontmatter.
-- All three task files created and initialized.
-- Phase Progress correctly reflects the route.
-
-Update `progress.md`. Apply the Phase Transition rules in references/workflow.md.
+Persist `progress.md`, then apply the Phase Transition rules in `references/workflow.md`.
