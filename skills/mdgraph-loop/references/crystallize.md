@@ -18,7 +18,7 @@ Write the summary to `progress.md` `## Result`.
 
 If nothing is reusable, record `Knowledge crystallized: none` in `## Result` and skip to Close.
 
-Otherwise search mdgraph for related documents (project name, feature name, key technical terms), then decide by priority:
+Otherwise search mdgraph for related documents (project name, feature name, key technical terms). Decide by **process vs end state** first: if the output is a reusable, stable conclusion (the answer / how-to), route to `30_knowledge/`. If the output is still an investigation — what was tried, sources, open questions, ongoing findings — route to `20_research/` (timestamped, `type: research`) instead. Then within `30_knowledge/`, decide by priority:
 
 | Priority | Condition | Action |
 |----------|-----------|--------|

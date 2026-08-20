@@ -42,10 +42,13 @@ updated: YYYY-MM-DD
 
 Use `status: in_progress` for ongoing investigations; `status: active` for maintained reference notes.
 
+## Crystallization
+
+When a `20_research/` investigation reaches a reusable, stable conclusion, crystallize that conclusion into `30_knowledge/` (semantic name, `type: knowledge`, `tags: [evergreen]` for timeless content). Do not keep the same material duplicated in both folders — the research note documents the *process* (what was tried, sources, open questions); the knowledge note holds the *end state* (the answer / how-to). A conclusion that is only useful within a single investigation may stay in `20_research/`.
+
 ## Common Pitfalls
 
-- Do not put durable long-lived knowledge in `00_inbox/` forever; promote it to `30_knowledge/` once stable and add `tags: [evergreen]`.
-- Do not create untimestamped files in `00_inbox/`, `10_tasks/`, `20_research/`, or `90_archive/` except `_template.md`.
+- Do not create untimestamped files in `10_tasks/`, `20_research/`, or `90_archive/` except `_template.md`.
 - Do not treat `.mdgraph/*.db` as authoritative data.
 - Do not rely on template notes as real knowledge; templates are ignored by MDGraph indexing.
 - Do not overwrite notes just because a generated title collides; search first and choose update vs new note deliberately.

@@ -27,12 +27,12 @@ Rules:
 ## type Values (role/category only)
 
 ```
-inbox       agent_task   research    plan
-concept     project      person
-tool        knowledge
+agent_task   research    plan
+concept      project     person
+tool         knowledge
 ```
 
-`inbox` means capture-bucket role; use `status: draft` for unorganized lifecycle state. `plan` is produced by mdgraph-loop task plans. Other values also in active use (daily, daily-analysis, findings, progress, reference) are allowed; for new notes prefer the closest role listed above.
+`plan` is produced by mdgraph-loop task plans. Other values also in active use (daily, daily-analysis, findings, progress, reference) are allowed; for new notes prefer the closest role listed above.
 
 ## status Values (lifecycle only)
 

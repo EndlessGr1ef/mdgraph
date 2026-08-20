@@ -15,33 +15,18 @@ description: >
 Local Markdown knowledge vault for long-term memory. Markdown files are the durable source of truth; MDGraph's SQLite index is a rebuildable cache.
 
 > [!summary] TL;DR
-> - Vault root: `<vault-root>/` with 5 directories: `00_inbox/`, `10_tasks/`, `20_research/`, `30_knowledge/`, `90_archive/`
-> - Timestamp prefix (`yyyymmdd_hhmmss_`) for inbox/agent tasks/research/archive; semantic names for `30_knowledge/`
+> - Vault root: `<vault-root>/` with 4 directories: `10_tasks/`, `20_research/`, `30_knowledge/`, `90_archive/`
+> - Timestamp prefix (`yyyymmdd_hhmmss_`) for agent tasks/research/archive; semantic names for `30_knowledge/`
 > - Every note needs a stable `id`, a non-empty `type`, and at least one `tag`
 > - MDGraph indexes notes; `mdgraph_*` MCP tools for search/explore/create/update
-
-## When to use
-
-Use this skill when:
-
-- Creating, updating, or organizing notes in the knowledge vault
-- Recording an AI agent task or coding session
-- Searching vault content or maintaining the MDGraph index
-- Deciding which folder or frontmatter to use for a new note
-
-Do **not** use this skill when:
-
-- Writing general Markdown formatting or Obsidian plugin config → use `obsidian-markdown`
-- The question is purely about tool usage without vault interaction
 
 ## Quick Reference
 
 ```
 <vault-root>/
-├── 00_inbox/       # Quick capture, timestamped
 ├── 10_tasks/       # Agent task records, timestamped
-├── 20_research/    # Research notes, timestamped
-├── 30_knowledge/   # Long-lived knowledge (concepts, projects, people, tools)
+├── 20_research/    # Investigation process — surveys, sources, open questions
+├── 30_knowledge/   # Reusable end state — concepts, projects, people, tools, how-to
 │   ├── concepts/
 │   ├── projects/
 │   ├── people/
