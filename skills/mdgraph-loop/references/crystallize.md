@@ -7,7 +7,7 @@ description: Crystallize phase — summarize the task, persist reusable knowledg
 
 ## 1. Summarize and record result
 
-Extract from `progress.md` and `plan.md`:
+Extract from `progress.md` (including `## Findings`) and `plan.md`:
 - changes made and files modified
 - lessons learned, pitfalls encountered, patterns discovered
 - reusable long-term knowledge
@@ -15,6 +15,8 @@ Extract from `progress.md` and `plan.md`:
 Write the summary to `progress.md` `## Result`.
 
 ## 2. Decide knowledge destination
+
+Crystallize is the only phase that moves documents out of the task folder. All earlier task documents live under `10_tasks/<timestamp>/`; only here may they be routed to `20_research/` or `30_knowledge/`. Do not create knowledge/research notes in those locations during earlier phases.
 
 If nothing is reusable, record `Knowledge crystallized: none` in `## Result` and skip to Close.
 

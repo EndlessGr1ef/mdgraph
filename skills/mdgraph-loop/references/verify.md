@@ -14,7 +14,7 @@ Review the relevant artifact against:
 - task goal and success criteria
 - `plan.md` decisions, verification criteria, and rejected alternatives
 - implementation and diff for execution tasks
-- findings and evidence for non-execution tasks
+- findings and evidence for non-execution tasks (accumulated in `progress.md` `## Findings`)
 - constraints and risks
 
 For execution tasks, use a separate agent invocation from the one that implemented (Subagent Policy in SKILL.md).

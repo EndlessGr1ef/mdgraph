@@ -35,6 +35,10 @@ updated: YYYY-MM-DD
 
 ## Progress
 
+## Findings
+
+(Accumulate task discoveries and evidence here — key findings, rejected paths, dead ends. This is the single place to deposit findings; no separate findings document.)
+
 ## Decisions
 
 ## Human Checkpoints

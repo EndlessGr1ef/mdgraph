@@ -24,7 +24,7 @@ This is the only routing decision. Do not invent additional route categories.
 
 ## 3. Create the task record
 
-- Create one timestamped folder under `10_tasks/`.
+- Create one timestamped folder under `10_tasks/`. This folder is the single home for every document this task will produce: `progress.md`, `plan.md`, and any other task documents (findings, evidence, exported HTML). Keep everything else inside this folder too — do not scatter task documents to other vault locations before Crystallize.
 - Create `progress.md` from `templates/progress.md`, replacing placeholder frontmatter (id, title, description, phase, status, tags, created, updated) with actual values. No `route` field.
 - Prefer `mdgraph_create_note`. Filesystem fallback: write the file, then run `mdgraph_sync`.
 - Fill `## Goal`, `## Scope`, `## Constraints`, `## Success Criteria`.

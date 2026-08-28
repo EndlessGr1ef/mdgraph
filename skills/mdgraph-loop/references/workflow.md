@@ -83,7 +83,8 @@ Execute re-entry within confirmed scope needs no new confirmation. Scope expansi
 1. Use the resolved vault root and filesystem tools for Markdown discovery and persistence.
 2. After filesystem writes, run `mdgraph_sync`.
 3. Persist canonical `progress.md` before crossing any phase boundary.
-4. If a safe write is impossible, leave the current phase unchanged, set task `blocked` when possible, and stop. Never continue with memory-only state.
+4. All task documents other than `progress.md` and `plan.md` stay inside the task folder `10_tasks/<timestamp>/`; only Crystallize may write to `20_research/` / `30_knowledge/`.
+5. If a safe write is impossible, leave the current phase unchanged, set task `blocked` when possible, and stop. Never continue with memory-only state.
 
 ## Crystallize Terminal Close
 

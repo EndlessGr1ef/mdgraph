@@ -44,6 +44,7 @@ For tasks that change files outside the vault, implementation and verification m
 ## Persistence
 
 - Task state lives in the vault under `10_tasks/<timestamp>/`. Code changes live in the repo. Never write code or config inside the vault.
+- Accumulate findings and evidence in `progress.md` `## Findings` (there is no separate findings document). Every other task document — exported HTML, subagent reports, large analysis — is created inside the task folder `10_tasks/<timestamp>/`. Nothing else is written to other vault locations before Crystallize. Crystallize is the only phase that persists documents outside the task folder (to `20_research/` or `30_knowledge/`).
 - Prefer `mdgraph_create_note` / `mdgraph_update_note` for all state writes so the index stays fresh. Filesystem fallback: write Markdown first, then run `mdgraph_sync`.
 - If a safe write is impossible, set task `blocked` and stop. Never continue from memory-only state.
 
