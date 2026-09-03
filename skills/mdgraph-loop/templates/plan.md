@@ -54,7 +54,7 @@ updated: YYYY-MM-DD
 - [non-goal]
 
 ## Human Checkpoint
-| Question | Answer |
+| Item (question/risk) | Answer |
 |----------|--------|
 |          |        |
 
@@ -62,7 +62,3 @@ updated: YYYY-MM-DD
 | Error | Attempts | Resolution |
 |-------|----------|------------|
 |       | 1        |            |
-
-## Notes
-- Re-read this plan before major decisions (attention refresh).
-- Log all errors to avoid repeating them.

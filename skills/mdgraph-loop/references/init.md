@@ -34,7 +34,7 @@ This is the only routing decision. Do not invent additional route categories.
 
 ## 4. Related task discovery
 
-Search mdgraph for related tasks (`mdgraph_search`, project/feature keywords). Reuse existing context when useful; add only relevant links, not broad dumps.
+Search mdgraph for related tasks (`mdgraph_search`, project/feature keywords). If a directly relevant note id is already known (knowledge hub, prior task), fan out with `mdgraph_get_graph` (direction `both`, depth 1–2) to surface connected tasks and notes before searching. Reuse existing context when useful; add only relevant links, not broad dumps.
 
 ## 5. Close criteria
 

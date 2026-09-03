@@ -1,5 +1,5 @@
 ---
-description: "Prepare: gather context, ask one human question, write plan.md"
+description: "Prepare: gather context, ask 1–5 checkpoint questions/risk items, write plan.md"
 ---
 
 Load `mdgraph-loop`. The user wants to enter Prepare phase.

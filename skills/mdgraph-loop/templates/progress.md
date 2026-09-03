@@ -42,7 +42,7 @@ updated: YYYY-MM-DD
 ## Decisions
 
 ## Human Checkpoints
-| Phase | Question | Answer |
+| Phase | Item (question/risk) | Answer |
 |-------|----------|--------|
 |       |          |        |
 

@@ -3,7 +3,7 @@ name: mdgraph-loop
 description: >-
   Lightweight loop-driven engineering workflow backed by mdgraph and KnowledgeVault.
   Init → Prepare → Execute (only when changes happen outside the vault) → Verify → Crystallize,
-  with a one-question human checkpoint in Prepare and a confirmation gate before Execute.
+  with a short human checkpoint in Prepare (1–5 questions or risk items) and a confirmation gate before Execute.
 ---
 
 # mdgraph-loop
@@ -25,7 +25,7 @@ While `status` is `in_progress` or `paused`, exactly one phase is `in_progress` 
 | Phase | Always runs | Human interaction |
 |-------|-------------|-------------------|
 | Init | yes | ask only if the request is unclear |
-| Prepare | yes | **exactly one question before close** |
+| Prepare | yes | **1–5 checkpoint items before close (≥1 important question)** |
 | Execute | only if the task changes files outside the vault | **explicit confirmation before implementing** |
 | Verify | yes | report only |
 | Crystallize | yes | none |
@@ -34,7 +34,7 @@ The only routing decision is made in Init: does this task change files outside t
 
 ## Human Gates
 
-1. **Prepare checkpoint** (mandatory): analyze hidden assumptions, missing information, and the most common mistake; then ask the user exactly one question and wait for the answer before finalizing the plan. See `references/prepare.md`.
+1. **Prepare checkpoint** (mandatory): analyze hidden assumptions, missing information, and the most common mistake; then present 1–5 checkpoint items to the user — at least one important question, the rest questions or risk points — and wait for the reply before finalizing the plan. See `references/prepare.md`.
 2. **Execute gate** (mandatory for execution tasks): present what will change, which files are affected, risks, and the test plan; wait for explicit confirmation. Scope expansion requires a new gate.
 
 ## Subagent Policy

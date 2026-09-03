@@ -35,25 +35,15 @@ Record in `plan.md`:
 
 ## 4. Human checkpoint (mandatory)
 
-Before finalizing the plan, ask the user **exactly one question** — the highest-leverage question that would change the plan. Then wait for the answer. The three analyses from section 3 are recorded in `plan.md`; send the user only the single question, not the whole analysis.
+Before finalizing the plan, run the three analyses from section 3 over the request, then present a checkpoint to the user: **1–5 items in total, at least one of them an important question**. Each item is either a question (the answer would change the plan) or a risk point surfaced from your analysis — a hidden assumption, missing key information, or the most common mistake for this class of task — stated as a finding the user can confirm or correct. Then wait for the reply.
 
-Use the host's interactive question mechanism when available; otherwise ask in a plain message and stop until the user replies. Ask in the user's language.
+The three analyses are recorded in `plan.md` (section 3); send the user only the checkpoint items, never the full analysis document.
 
-The checkpoint follows this protocol:
+Use the host's interactive question mechanism when available; otherwise send a plain message and stop until the user replies. Ask in the user's language.
 
-> 请先不要回答我的问题。在给出答案之前，请先完成以下分析：
-> 1. 指出我在这个问题中没有明确说出、但已经默认成立的假设；
-> 2. 告诉我还缺少哪些关键信息，以及这些信息可能如何改变你的答案；
-> 3. 指出人们在处理这类问题时最常犯的一个错误。
-> 然后，只向我提出一个最关键的问题。等我回答以后，你再给出最终输出。
+Skip the checkpoint only when the original request already says to proceed without asking, or an earlier answer already covered it; record the reason in `plan.md`.
 
-English equivalent:
-
-> Do not answer yet. First: (1) list the hidden assumptions behind my request; (2) list missing key information and how each could change your answer; (3) name the most common mistake people make here. Then ask me exactly one question — the one that best reveals my real goal and situation. Wait for my answer before producing the final plan.
-
-Skip the question only when the original request already says to proceed without asking, or an earlier answer already covered the checkpoint; record the reason in `plan.md`.
-
-After the answer: incorporate it into the plan and record the question + answer in `plan.md` `## Human Checkpoint`.
+After the reply: incorporate it into the plan and record each item with its answer in `plan.md` `## Human Checkpoint`.
 
 ## 5. Write the plan
 

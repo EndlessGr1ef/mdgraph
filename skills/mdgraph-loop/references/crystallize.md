@@ -20,7 +20,7 @@ Crystallize is the only phase that moves documents out of the task folder. All e
 
 If nothing is reusable, record `Knowledge crystallized: none` in `## Result` and skip to Close.
 
-Otherwise search mdgraph for related documents (project name, feature name, key technical terms). Decide by **process vs end state** first: if the output is a reusable, stable conclusion (the answer / how-to), route to `30_knowledge/`. If the output is still an investigation — what was tried, sources, open questions, ongoing findings — route to `20_research/` (timestamped, `type: research`) instead. Then within `30_knowledge/`, decide by priority:
+Otherwise search mdgraph for related documents (project name, feature name, key technical terms). When a likely hub note exists (e.g. the project knowledge note), start from `mdgraph_get_graph` (direction `both`, depth 1–2) to find connected notes and tasks, then search to fill gaps. Decide by **process vs end state** first: if the output is a reusable, stable conclusion (the answer / how-to), route to `30_knowledge/`. If the output is still an investigation — what was tried, sources, open questions, ongoing findings — route to `20_research/` (timestamped, `type: research`) instead. Then within `30_knowledge/`, decide by priority:
 
 | Priority | Condition | Action |
 |----------|-----------|--------|

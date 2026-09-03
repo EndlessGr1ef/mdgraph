@@ -12,7 +12,7 @@ pnpm dev --vault "<path-to-vault>" watch
 
 ## MCP Tools
 
-OpenCode starts MDGraph as an MCP server. Available tools:
+Agent hosts launch MDGraph as an MCP server (OpenCode, DSH, Claude Desktop, …). Available tools:
 
 ```
 mdgraph_status         — index health, tag distribution
@@ -64,3 +64,13 @@ yyyymmdd_hhmmss_short-kebab-name.md
 - Preserve all existing sections unless the user asks to remove or restructure them; append new material under the most relevant existing heading.
 - Avoid broad reorganizations unless requested.
 - If the update comes from a coding session, append one dated bullet containing: decision/change, evidence link, and current status.
+
+## Resolving Duplicate IDs
+
+A duplicate `id` (the same note id indexed from two paths) is reported in `mdgraph_status` and in sync results; the file that hits the conflict is NOT indexed. Resolve duplicates before further writes:
+
+1. After bulk moves, renames, or folder restructures, run `mdgraph_status` (or `sync`) and read the reported `errors`.
+2. For each duplicate-id error, choose the canonical file: delete or rename the stale one, or migrate one file's `id` (update all wikilinks that reference it).
+3. Re-run `mdgraph_sync` and confirm no duplicate-id errors remain.
+
+Never leave a duplicate-id error unreported: the shadowed file silently disappears from search and graph results.

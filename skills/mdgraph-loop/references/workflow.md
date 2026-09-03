@@ -30,12 +30,13 @@ Phase order: Init → Prepare → Execute → Verify → Crystallize. Execute is
 2. Otherwise search mdgraph with filters `type: agent_task`, `tag: agent-task`, `status: in_progress` (then `paused`). Accept only records whose path ends with `/progress.md`. If exactly one matches the current context, select it.
 3. If more than one matches, ask the user to choose.
 4. If none match, start a new task with `/loop-init`.
+5. Validate the selected record: `status` must be one of `in_progress`, `paused`, `blocked`, `aborted`, `done`. Any other value (`active`, `completed`, `complete`, `review`, …) is a non-loop status: report it and ask whether to migrate the value explicitly or start a new task — never resume silently and never auto-map `active` to another value. (Search filters in step 2 already exclude other statuses; this check guards explicit id/path selections.)
 
 Never select a result only because it is active. Never infer state from `plan.md`.
 
 ### Legacy tasks
 
-Tasks created before 2026-08 may use the old six-phase table (Explore/Plan rows), a `route` frontmatter field, or `findings.md`/`task_plan.md` files. If a selected task uses that vocabulary, do not auto-resume it: report the difference and ask whether to migrate or start a new task. Migration replaces the Explore and Plan rows with one Prepare row — `in_progress` if either legacy phase is `in_progress`, otherwise `complete` (later date) if both are done, otherwise `pending` — and drops the old `route` field. Never modify old records silently.
+Tasks created before 2026-08 may use the old six-phase table (Explore/Plan rows), a `route` frontmatter field, or `findings.md`/`task_plan.md` files. Non-loop `status` values (e.g. `active`) are legacy regardless of creation date; they are handled by the Task Selection vocabulary check above. If a selected task uses legacy vocabulary, do not auto-resume it: report the difference and ask whether to migrate or start a new task. Migration replaces the Explore and Plan rows with one Prepare row — `in_progress` if either legacy phase is `in_progress`, otherwise `complete` (later date) if both are done, otherwise `pending` — and drops the old `route` field. Never modify old records silently.
 
 Then, using only `progress.md`:
 - Exactly one phase `in_progress` and frontmatter `phase` matches → resume that phase.
