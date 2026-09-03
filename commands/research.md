@@ -2,7 +2,7 @@
 description: "Standalone research — gather evidence and summarize findings without entering the phase workflow"
 ---
 
-Execute a **standalone research** task. This command is separate from `/phase-research` and MUST NOT update `## Phase Progress` or auto-transition into Plan/Implement.
+Execute a **standalone research** task. This command is separate from the mdgraph-loop workflow (`/loop-init` … `/loop-crystallize`) and MUST NOT create or update `10_tasks/` task state, `## Phase Progress`, or auto-transition into Execute.
 
 Research topic:
 $ARGUMENTS
@@ -50,10 +50,10 @@ $ARGUMENTS
 5. **Vault sinking is optional**
    - If the result is likely reusable, ask: `Save this research to <vault-root>/20_research/?`
    - If the user says yes, write a timestamped research note using KnowledgeVault rules.
-   - If the research should become implementation work, suggest `/phase-brief` instead of silently entering the phase workflow.
+   - If the research should become implementation work, suggest starting an mdgraph-loop task with `/loop-init` instead of entering the phase workflow silently.
 
 ## Constraints
 
-- Do not create or modify `10_tasks/` task folders unless the user explicitly asks to convert the research into a phase workflow task.
+- Do not create or modify `10_tasks/` task folders unless the user explicitly asks to convert the research into an mdgraph-loop task.
 - Do not update Phase Progress.
-- Do not auto-transition to `/phase-plan` or `/phase-implement`.
+- Do not auto-transition into any mdgraph-loop phase.
