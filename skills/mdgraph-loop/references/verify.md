@@ -19,6 +19,17 @@ Review the relevant artifact against:
 
 For execution tasks, use a separate agent invocation from the one that implemented (Subagent Policy in SKILL.md).
 
+### Adversarial checks to run every pass
+
+Beyond reading the artifact, run these — each one has caught a blocking defect that a green suite did not:
+
+- **Clause-by-clause against the plan.** Walk `plan.md` and ask of each requirement "where in the diff is this satisfied?" A requirement that is declared but never populated, or implemented as a weaker version of what was written, is the most common blocking defect.
+- **Re-derive the plan's numbers from source** rather than trusting the document. Counts, file paths and line numbers in a plan go stale as the work proceeds.
+- **Falsify the new tests.** For each test the implementation added, name a behaviour-breaking edit that leaves it passing. Report the ones you can break — those tests guard nothing.
+- **Merged-tree verification.** If several agents wrote concurrently, ignore their summaries and re-run the full suite, lint and typecheck yourself.
+- **Same-shape check on fixes.** Ask whether the fix could reproduce the bug it addresses, on a different input.
+- **Degenerate-input check.** For any scoring, ranking, gating or truncation logic, work through: all-equal values, all-zero, empty collection, single element, oversized element, values out of range, and a malformed-but-parseable response.
+
 ## 2. Tests for code projects
 
 When the task changes code outside the vault:

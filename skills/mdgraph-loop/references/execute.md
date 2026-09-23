@@ -33,9 +33,14 @@ Read `progress.md` and `plan.md` before starting.
 
 The main agent never writes code. Spawn a subagent for each implementation unit, selected by capability and work size (single file → focused agent; multiple files → parallel-writing or deep-work agent). While subagents write, the main agent updates progress and reviews completed output.
 
+Two rules that keep delegated work checkable:
+
+- **Give each unit the plan clauses it must satisfy, verbatim.** An agent that receives only a summary implements the summary; the requirement it silently drops is the one Verify will find later.
+- **Freeze any interface two concurrent units share, in both prompts.** When units run in parallel on disjoint files, state the exact signatures in each prompt, and give each file to exactly one owner. Then re-verify the merged tree yourself — parallel agents report status against a tree that was changing under them.
+
 ## 4. Execute tasks
 
-Work through `plan.md` ordered tasks. Log meaningful progress in `progress.md` after each step. Keep the main agent on orchestration and review.
+Work through `plan.md` ordered tasks. Log meaningful progress in `progress.md` after each step. Keep the main agent on orchestration and review. After each unit, have it report which plan clauses it satisfied and which it could not — that list is what Verify checks first.
 
 ## 5. Failed attempts
 
