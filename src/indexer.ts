@@ -68,6 +68,35 @@ async function indexFileIfChanged(db: DatabaseHandle, vaultRoot: string, filePat
 }
 
 /**
+ * Read-time freshness: skip on matching (size, mtime), confirm with the content
+ * hash, and re-index inline on a real change. Failures are reported as stale.
+ */
+export async function ensureNoteFresh(
+  db: DatabaseHandle,
+  vaultRoot: string,
+  noteId: string,
+): Promise<{ fresh: boolean; reindexed: boolean; stale: boolean }> {
+  const note = db.prepare("SELECT path FROM notes WHERE id = ?").get(noteId) as { path: string } | undefined;
+  if (!note) return { fresh: true, reindexed: false, stale: false };
+  const recorded = getRecordedFile(db, note.path);
+  if (!recorded) return { fresh: true, reindexed: false, stale: false };
+
+  const absolutePath = path.join(vaultRoot, note.path);
+  try {
+    const stat = await fs.stat(absolutePath);
+    if (stat.size === recorded.size && Math.trunc(stat.mtimeMs) === recorded.mtime_ms) {
+      return { fresh: true, reindexed: false, stale: false };
+    }
+    const raw = await fs.readFile(absolutePath, "utf8");
+    if (sha256(raw) === recorded.hash) return { fresh: true, reindexed: false, stale: false };
+    await indexFile(db, vaultRoot, absolutePath);
+    return { fresh: false, reindexed: true, stale: false };
+  } catch {
+    return { fresh: false, reindexed: false, stale: true };
+  }
+}
+
+/**
  * Scoped near-realtime sync for a precise list of changed paths (from the
  * watcher). Each path is reconciled against the filesystem: removed or
  * non-markdown paths are dropped from the index, surviving markdown files are

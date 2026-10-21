@@ -1,6 +1,6 @@
 import type { Database as DatabaseHandle } from "better-sqlite3";
 import { getNote, searchNotes, sha256 } from "./db.js";
-import type { SearchResult } from "./types.js";
+import type { MarkdownHeading, SearchResult } from "./types.js";
 
 /**
  * Question-oriented vault exploration (`mdgraph_explore_notes`).
@@ -24,6 +24,8 @@ import type { SearchResult } from "./types.js";
  *   served (an edit between calls therefore re-serves), and (c) its body is
  *   at least `EXPLORE_LIMITS.MIN_BODY_LINES` lines — a shorter body is cheaper
  *   to re-send than to point back at (CodeGraph's MIN_COVERED_LINES rationale).
+ * - Output budget: answer bodies share `MAX_TOTAL_CHARS - 800` characters, each
+ *   note is capped at `MAX_NOTE_CHARS`, and a starved note becomes a pointer.
  * - Low confidence: when the top result has no query token in its title,
  *   path, or snippet, the top match is weak — we append an honest footnote
  *   rather than pretending the answer is comprehensive.
@@ -36,14 +38,35 @@ export const EXPLORE_LIMITS = {
   MAX_SERVED: 200,
   /** Weakly-related pointers rendered after the answer notes. */
   MAX_POINTERS: 10,
+  /** Hard cap on answer-note body characters in one response. */
+  MAX_TOTAL_CHARS: 12000,
+  /** Hard cap on a single answer note's body characters. */
+  MAX_NOTE_CHARS: 6000,
 } as const;
 
 const DEFAULT_MAX_NOTES = 3;
 export const LOW_CONFIDENCE_NOTE = "Results may be incomplete — try a precise title, tag, or note id.";
 
+/** Characters held back for the pointer section and the response scaffolding. */
+const POINTER_RESERVE_CHARS = 800;
+/** Bounds the omitted-section list so metadata cannot grow back. */
+const MAX_OMITTED_SECTIONS = 8;
+/** A heading cut must keep at least this share of the cap to be worth using. */
+const HEADING_CUT_MIN_SHARE = 0.6;
+/** Headroom for the stale flag and warning the MCP layer appends. */
+const STALE_ANNOTATION_RESERVE_CHARS = 240;
+/** Fit loop floor: an answer body is never shortened below this. */
+const MIN_ANSWER_CHARS = 1000;
+/** Extra shrink room for metadata that grows when sections are omitted. */
+const SHRINK_MARGIN_CHARS = 128;
+/** Opening or closing line of a ``` or ~~~ fenced code block. */
+const FENCE_MARKER_RE = /^\s*(```|~~~)/;
+
 /** What this session last served in full for one note id. */
 export interface ServedNoteRecord {
   bodyHash: string;
+  /** Delivered body characters; a truncated serve is not reusable. */
+  servedChars: number;
   servedAt: number;
 }
 
@@ -59,16 +82,21 @@ export class ServedNotesStore {
     return this.records.get(id);
   }
 
-  set(id: string, bodyHash: string): void {
+  set(id: string, bodyHash: string, servedChars: number): void {
     // Re-insert to move to the most-recently-served tail; eviction drops the
     // oldest-served head when the bound is exceeded.
     this.records.delete(id);
-    this.records.set(id, { bodyHash, servedAt: Date.now() });
+    this.records.set(id, { bodyHash, servedChars, servedAt: Date.now() });
     while (this.records.size > EXPLORE_LIMITS.MAX_SERVED) {
       const oldest = this.records.keys().next();
       if (oldest.done) break;
       this.records.delete(oldest.value);
     }
+  }
+
+  /** Forget one record so a fresh re-run can re-send that body. */
+  delete(id: string): void {
+    this.records.delete(id);
   }
 }
 
@@ -84,10 +112,14 @@ export interface ExploreAnswerNote {
   title: string;
   path: string;
   tags: string[];
-  /** Rendered body: full content, or a dedup pointer line when re-served. */
+  /** Rendered body: full content, a budget slice, or a dedup pointer line. */
   body: string;
   /** True when the body was replaced by a pointer because it was already served. */
   deduped: boolean;
+  /** True when the body was cut to fit the output budget. */
+  truncated: boolean;
+  /** Titles of the sections dropped by the cut (bounded). */
+  omittedSections: string[];
 }
 
 export interface ExplorePointer {
@@ -103,8 +135,6 @@ export interface ExploreResult {
   relatedPointers: ExplorePointer[];
   lowConfidence: boolean;
   note?: string;
-  /** Full markdown rendering (answer notes + pointers + optional footnote). */
-  markdown: string;
 }
 
 /** The pointer line that replaces a body already served unchanged this session. */
@@ -137,17 +167,91 @@ function isTinyBody(body: string): boolean {
   return body.trim().split("\n").filter((line) => line.trim() !== "").length < EXPLORE_LIMITS.MIN_BODY_LINES;
 }
 
+export interface SlicedBody {
+  body: string;
+  truncated: boolean;
+  omittedSections: string[];
+}
+
+/** Start offset of every body line; line N (1-based) starts at starts[N - 1]. */
+function lineStartOffsets(body: string): number[] {
+  const starts = [0];
+  for (let index = 0; index < body.length; index += 1) {
+    if (body[index] === "\n") starts.push(index + 1);
+  }
+  return starts;
+}
+
+/** Fence marker (``` or ~~~) still open at the end of `text`, if any. */
+function openFenceMarker(text: string): string | undefined {
+  let open: string | undefined;
+  for (const line of text.split("\n")) {
+    const match = FENCE_MARKER_RE.exec(line);
+    if (!match) continue;
+    open = open ? undefined : match[1];
+  }
+  return open;
+}
+
+/**
+ * Cut a body to `cap` characters, preferring a heading or newline boundary that
+ * keeps at least 60% of the cap. A fence left open is closed inside the cap.
+ */
+export function sliceBody(body: string, headings: MarkdownHeading[], cap: number, minCut = 0): SlicedBody {
+  if (body.length <= cap) return { body, truncated: false, omittedSections: [] };
+
+  const starts = lineStartOffsets(body);
+  const inRange = headings.filter((heading) => heading.line >= 1 && heading.line <= starts.length);
+  const boundaries = inRange
+    .map((heading) => starts[heading.line - 1])
+    .filter((offset) => offset > 0 && offset <= cap);
+  const boundary = boundaries.length > 0 ? Math.max(...boundaries) : -1;
+  const newlineCut = body.lastIndexOf("\n", cap - 1) + 1;
+  let cut = cap;
+  if (boundary >= cap * HEADING_CUT_MIN_SHARE) cut = boundary;
+  else if (newlineCut >= cap * HEADING_CUT_MIN_SHARE) cut = newlineCut;
+  if (cut < minCut) cut = Math.min(cap, minCut);
+
+  let kept = body.slice(0, cut);
+  let omittedFrom = cut;
+  const open = openFenceMarker(kept);
+  if (open) {
+    // Never retreat to the opener: fill the cap and close the fence inside it.
+    omittedFrom = Math.max(0, cap - open.length - 1);
+    const head = body.slice(0, omittedFrom);
+    kept = openFenceMarker(head) ? `${head}${head.endsWith("\n") || head.length === 0 ? "" : "\n"}${open}` : head;
+  }
+
+  return {
+    body: kept,
+    truncated: true,
+    omittedSections: inRange
+      .filter((heading) => starts[heading.line - 1] >= omittedFrom)
+      .slice(0, MAX_OMITTED_SECTIONS)
+      .map((heading) => heading.text),
+  };
+}
+
 export function exploreNotes(db: DatabaseHandle, query: string, opts: ExploreOptions = {}): ExploreResult {
   const results = searchNotes(db, query, { limit: 50 });
   const maxNotes = Math.max(2, Math.min(opts.maxNotes ?? DEFAULT_MAX_NOTES, 5));
 
   const answerNotes: ExploreAnswerNote[] = [];
+  const budgetPointers: ExplorePointer[] = [];
+  const fullBodies = new Map<string, { body: string; headings: MarkdownHeading[] }>();
+  let remaining = EXPLORE_LIMITS.MAX_TOTAL_CHARS - POINTER_RESERVE_CHARS;
+  let bodyServed = false;
+
   for (const r of results.slice(0, maxNotes)) {
     const note = getNote(db, r.id);
     if (!note) continue;
     const hash = sha256(note.body);
     const served = opts.served?.get(r.id);
-    const reuse = served !== undefined && served.bodyHash === hash && !isTinyBody(note.body);
+    const reuse =
+      served !== undefined &&
+      served.bodyHash === hash &&
+      served.servedChars >= note.body.length &&
+      !isTinyBody(note.body);
     if (reuse) {
       answerNotes.push({
         id: note.id,
@@ -156,54 +260,128 @@ export function exploreNotes(db: DatabaseHandle, query: string, opts: ExploreOpt
         tags: r.tags,
         body: dedupPointer(note.id, note.title),
         deduped: true,
+        truncated: false,
+        omittedSections: [],
       });
-    } else {
-      opts.served?.set(r.id, hash);
-      answerNotes.push({
-        id: note.id,
-        title: note.title,
-        path: note.path,
-        tags: r.tags,
-        body: note.body,
-        deduped: false,
-      });
+      continue;
     }
+
+    // Dedup pointers are free; a starved note becomes a pointer, never a fragment.
+    if (bodyServed && remaining < MIN_ANSWER_CHARS) {
+      budgetPointers.push({ id: note.id, title: note.title, path: note.path, tags: r.tags });
+      continue;
+    }
+    const allowance = Math.min(note.body.length, EXPLORE_LIMITS.MAX_NOTE_CHARS, remaining);
+    const sliced = sliceBody(note.body, note.outline, allowance, MIN_ANSWER_CHARS);
+    remaining -= sliced.body.length;
+    bodyServed = true;
+    fullBodies.set(note.id, { body: note.body, headings: note.outline });
+    answerNotes.push({
+      id: note.id,
+      title: note.title,
+      path: note.path,
+      tags: r.tags,
+      body: sliced.body,
+      deduped: false,
+      truncated: sliced.truncated,
+      omittedSections: sliced.omittedSections,
+    });
   }
 
-  const relatedPointers: ExplorePointer[] = results
-    .slice(maxNotes, maxNotes + EXPLORE_LIMITS.MAX_POINTERS)
-    .map((r) => ({ id: r.id, title: r.title, path: r.path, tags: r.tags }));
+  const relatedPointers: ExplorePointer[] = [
+    ...budgetPointers,
+    ...results.slice(maxNotes, maxNotes + EXPLORE_LIMITS.MAX_POINTERS).map((r) => ({
+      id: r.id,
+      title: r.title,
+      path: r.path,
+      tags: r.tags,
+    })),
+  ];
 
   const lowConfidence = isWeakMatch(query, results);
-  return {
-    query,
-    answerNotes,
-    relatedPointers,
-    lowConfidence,
-    note: lowConfidence ? LOW_CONFIDENCE_NOTE : undefined,
-    markdown: renderMarkdown(answerNotes, relatedPointers, lowConfidence),
-  };
-}
+  const result = fitPayloadToBudget(
+    {
+      query,
+      answerNotes,
+      relatedPointers,
+      lowConfidence,
+      note: lowConfidence ? LOW_CONFIDENCE_NOTE : undefined,
+    },
+    fullBodies,
+    budgetPointers.length,
+  );
 
-function renderMarkdown(
-  answerNotes: ExploreAnswerNote[],
-  pointers: ExplorePointer[],
-  lowConfidence: boolean,
-): string {
-  const lines: string[] = ["## Answer notes"];
-  for (const a of answerNotes) {
-    lines.push("", `### ${a.title} (\`${a.path}\`)`);
-    lines.push(a.deduped ? `> ${a.body}` : a.body);
-  }
-  if (pointers.length > 0) {
-    lines.push("", "## Related (pointers)");
-    for (const p of pointers) {
-      const tags = p.tags.length ? ` #${p.tags.join(" #")}` : "";
-      lines.push(`- [${p.id}] ${p.title} — \`${p.path}\`${tags}`);
+  // Record only delivered bodies with their final length, so dedup never hides a cut.
+  if (opts.served) {
+    for (const answer of result.answerNotes) {
+      if (answer.deduped) continue;
+      const full = fullBodies.get(answer.id);
+      if (full) opts.served.set(answer.id, sha256(full.body), answer.body.length);
     }
   }
-  if (lowConfidence) {
-    lines.push("", "## Note", LOW_CONFIDENCE_NOTE);
+  return result;
+}
+
+/**
+ * Fit the pretty-printed payload: shrink bodies to the floor, drop subordinate
+ * answers, shorten the top answer last, and only then drop pointers.
+ */
+function fitPayloadToBudget(
+  result: ExploreResult,
+  fullBodies: Map<string, { body: string; headings: MarkdownHeading[] }>,
+  budgetPointerCount: number,
+): ExploreResult {
+  const limit = EXPLORE_LIMITS.MAX_TOTAL_CHARS - STALE_ANNOTATION_RESERVE_CHARS;
+  const size = () => JSON.stringify(result, null, 2).length;
+
+  // 1. Shrink the lower-ranked answers first; the top note is handled last.
+  for (let index = result.answerNotes.length - 1; index > 0 && size() > limit; index -= 1) {
+    while (size() > limit && shrinkAnswer(result.answerNotes[index], fullBodies, size, limit)) {
+      // Keep shrinking this answer until it fits or reaches the floor.
+    }
   }
-  return lines.join("\n");
+
+  // 2. A note that cannot shrink to the floor becomes a pointer instead.
+  for (let index = result.answerNotes.length - 1; index > 0 && size() > limit; index -= 1) {
+    const answer = result.answerNotes[index];
+    if (answer.body.length < MIN_ANSWER_CHARS) continue;
+    result.answerNotes.splice(index, 1);
+    result.relatedPointers.unshift({ id: answer.id, title: answer.title, path: answer.path, tags: answer.tags });
+    budgetPointerCount += 1;
+  }
+
+  // 3. Shortening the top answer is the last resort before losing pointers.
+  const top = result.answerNotes[0];
+  while (top && size() > limit) {
+    if (!shrinkAnswer(top, fullBodies, size, limit)) break;
+  }
+
+  // 4. Search pointers go from the tail, then budget pointers only as a last resort.
+  while (size() > limit && result.relatedPointers.length > budgetPointerCount) {
+    result.relatedPointers.pop();
+  }
+  while (size() > limit && result.relatedPointers.length > 0) {
+    result.relatedPointers.pop();
+  }
+  return result;
+}
+
+/** Shrink one answer body to fit `limit`; returns false when the floor is hit. */
+function shrinkAnswer(
+  answer: ExploreAnswerNote,
+  fullBodies: Map<string, { body: string; headings: MarkdownHeading[] }>,
+  size: () => number,
+  limit: number,
+): boolean {
+  const full = fullBodies.get(answer.id);
+  if (!full || answer.body.length <= MIN_ANSWER_CHARS) return false;
+  const overBy = size() - limit;
+  const cap = Math.max(MIN_ANSWER_CHARS, answer.body.length - overBy - SHRINK_MARGIN_CHARS);
+  if (cap >= answer.body.length) return false;
+  const sliced = sliceBody(full.body, full.headings, cap, MIN_ANSWER_CHARS);
+  if (sliced.body.length >= answer.body.length || sliced.body.length < MIN_ANSWER_CHARS) return false;
+  answer.body = sliced.body;
+  answer.truncated = sliced.truncated;
+  answer.omittedSections = sliced.omittedSections;
+  return true;
 }

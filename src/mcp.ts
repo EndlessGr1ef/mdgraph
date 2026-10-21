@@ -7,10 +7,14 @@ import { StdioServerTransport } from "@modelcontextprotocol/sdk/server/stdio.js"
 import { z } from "zod";
 import { getGraph, getNote, getStatus, openDb, searchNotes } from "./db.js";
 import { exploreNotes, ServedNotesStore } from "./explore.js";
-import { indexFile, syncVault, type SyncResult } from "./indexer.js";
+import { ensureNoteFresh, indexFile, syncVault, type SyncResult } from "./indexer.js";
+import { MCP_INSTRUCTIONS } from "./instructions.js";
 import { assertInsideVault, resolveVaultRoot, toRelativePath } from "./paths.js";
 import { deriveTags, normalizeTags } from "./tags.js";
 import { watchVault } from "./watcher.js";
+
+const STALE_WARNING =
+  "Index is stale: the note changed on disk but could not be re-indexed; run mdgraph_sync to refresh.";
 
 function jsonResult(value: unknown) {
   return {
@@ -100,18 +104,59 @@ export function registerExploreNotesTool(
   server: McpServer,
   db: DatabaseHandle,
   servedNotes: ServedNotesStore,
+  vaultRoot: string,
 ): void {
   server.tool(
     "mdgraph_explore_notes",
-    "Explore the vault for a question: returns the top few matching notes in full as 'answer notes' plus one-line pointers (id, title, path, tags) to related or weaker matches. A note already served unchanged earlier in this conversation is returned as a pointer line instead of its full body (session-level dedup). Use this for open-ended, question-oriented exploration across many notes; for a single known id prefer mdgraph_get_note.",
+    "Explore the vault for a question: returns the top few matching notes in full as 'answer notes' plus one-line pointers (id, title, path, tags) to related or weaker matches. Bodies are capped by an output budget; a truncated note lists the sections left out. A note already served unchanged earlier in this conversation is returned as a pointer line instead of its full body (session-level dedup). Use this for open-ended, question-oriented exploration across many notes; for a single known id prefer mdgraph_get_note.",
     {
       query: z.string().min(1),
       maxNotes: z.number().int().min(2).max(5).optional(),
     },
     async ({ query, maxNotes }) => {
-      return jsonResult(exploreNotes(db, query, { maxNotes, served: servedNotes }));
+      let result = exploreNotes(db, query, { maxNotes, served: servedNotes });
+      let freshness = await collectFreshness(db, vaultRoot, result.answerNotes);
+      if ([...freshness.values()].some((entry) => entry.reindexed)) {
+        // Forget pass-1 hashes for discarded bodies so the single re-run re-sends them.
+        for (const answer of result.answerNotes) {
+          if (!answer.deduped) servedNotes.delete(answer.id);
+        }
+        result = exploreNotes(db, query, { maxNotes, served: servedNotes });
+        freshness = await collectFreshness(db, vaultRoot, result.answerNotes);
+      }
+      const answerNotes = result.answerNotes.map((answer) =>
+        freshness.get(answer.id)?.stale ? { ...answer, stale: true } : answer,
+      );
+      const stale = answerNotes.some((answer) => "stale" in answer);
+      return jsonResult(stale ? { ...result, answerNotes, warning: STALE_WARNING } : { ...result, answerNotes });
     },
   );
+}
+
+/** Freshness of every answer note, keyed by note id. */
+async function collectFreshness(
+  db: DatabaseHandle,
+  vaultRoot: string,
+  notes: Array<{ id: string }>,
+): Promise<Map<string, { fresh: boolean; reindexed: boolean; stale: boolean }>> {
+  const freshness = new Map<string, { fresh: boolean; reindexed: boolean; stale: boolean }>();
+  for (const note of notes) {
+    freshness.set(note.id, await ensureNoteFresh(db, vaultRoot, note.id));
+  }
+  return freshness;
+}
+
+/** Fresh read for mdgraph_get_note: reindex first, then annotate stale results. */
+export async function getNoteWithFreshness(
+  db: DatabaseHandle,
+  vaultRoot: string,
+  id: string,
+  graphLimit?: number,
+) {
+  const freshness = await ensureNoteFresh(db, vaultRoot, id);
+  const note = getNote(db, id, { graphLimit });
+  const payload = note ?? { error: `Note not found: ${id}` };
+  return freshness.stale ? { ...payload, stale: true, warning: STALE_WARNING } : payload;
 }
 
 export async function createNote(
@@ -145,10 +190,15 @@ export async function createNote(
   return { success: true, id, path: relPath, tags: finalTags, derived_tags: derivedTags };
 }
 
+/** Build the MCP server with the documented initialize instructions. */
+export function createMcpServer(): McpServer {
+  return new McpServer({ name: "mdgraph", version: "0.1.0" }, { instructions: MCP_INSTRUCTIONS });
+}
+
 export async function startMcpServer(vault?: string): Promise<void> {
   const vaultRoot = resolveVaultRoot(vault);
   const store = openDb(vaultRoot);
-  const server = new McpServer({ name: "mdgraph", version: "0.1.0" });
+  const server = createMcpServer();
   // Per-session, bounded record of notes served in full (used by
   // mdgraph_explore_notes dedup). In process memory only; never persisted.
   const servedNotes = new ServedNotesStore();
@@ -208,8 +258,7 @@ export async function startMcpServer(vault?: string): Promise<void> {
       graphLimit: z.number().int().min(1).max(100).default(20),
     },
     async ({ id, graphLimit }) => {
-      const note = getNote(store.db, id, { graphLimit });
-      return jsonResult(note ?? { error: `Note not found: ${id}` });
+      return jsonResult(await getNoteWithFreshness(store.db, vaultRoot, id, graphLimit));
     },
   );
 
@@ -232,7 +281,7 @@ export async function startMcpServer(vault?: string): Promise<void> {
     return jsonResult(result);
   });
 
-  registerExploreNotesTool(server, store.db, servedNotes);
+  registerExploreNotesTool(server, store.db, servedNotes, vaultRoot);
 
   server.tool(
     "mdgraph_suggest_tags",
