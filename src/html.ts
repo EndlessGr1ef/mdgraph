@@ -152,14 +152,31 @@ function extractHtmlHeadings(root: Node): MarkdownHeading[] {
 /**
  * Only vault-local document links are graph edges. Absolute URLs, mailto,
  * javascript, protocol-relative URLs and bare fragments point outside the
- * vault, so they are not indexed as links.
+ * vault, so they are not indexed as links. Windows-style backslashes are
+ * rejected too: vault paths are POSIX, so such an href cannot resolve.
  */
 function isVaultLocalTarget(href: string): boolean {
   const value = href.trim();
   if (!value || value.startsWith("#")) return false;
   if (/^[a-z][a-z\d+.-]*:/i.test(value)) return false;
   if (value.startsWith("//")) return false;
+  if (value.includes("\\")) return false;
   return true;
+}
+
+/**
+ * Turn an href into the vault-relative target the graph resolves. The query
+ * string and fragment are dropped, and percent-encoding is decoded because
+ * disk paths are unencoded: "my%20report.md" links to the file "my report.md".
+ */
+function normalizeHref(href: string): string | undefined {
+  const withoutFragment = href.split("#")[0].split("?")[0].trim();
+  if (!withoutFragment) return undefined;
+  try {
+    return decodeURIComponent(withoutFragment);
+  } catch {
+    return withoutFragment;
+  }
 }
 
 function extractHtmlLinks(root: Node): string[] {
@@ -169,8 +186,8 @@ function extractHtmlLinks(root: Node): string[] {
     if (isElement(node) && node.tagName === "a") {
       const href = getAttribute(node, "href");
       if (href && isVaultLocalTarget(href)) {
-        const withoutFragment = href.split("#")[0];
-        if (withoutFragment) links.add(withoutFragment);
+        const target = normalizeHref(href);
+        if (target) links.add(target);
       }
     }
     if ("childNodes" in node) {

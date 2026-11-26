@@ -35,7 +35,14 @@ function extractLinks(body: string): string[] {
     const target = match[1].trim();
     // Notes link to HTML pages too, so both extensions form graph edges.
     if (/\.(md|html?)$/i.test(target)) {
-      links.add(target);
+      // Disk paths are unencoded, so "[x](my%20note.md)" must resolve to "my note.md".
+      let decoded = target;
+      try {
+        decoded = decodeURIComponent(target);
+      } catch {
+        // Malformed escape: keep the raw target so it is still attempted.
+      }
+      links.add(decoded);
     }
   }
   return [...links];

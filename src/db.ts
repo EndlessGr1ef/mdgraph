@@ -503,8 +503,11 @@ export function resolveLinkTarget(
 ): { status: "resolved"; id: string; path: string; title: string } | { status: "ambiguous"; candidates: ResolveCandidate[] } | { status: "broken" } {
   // Normalize relative file paths against the source note directory
   // DB paths are always POSIX (vault-relative with /), so use path.posix
+  // A leading "/" is vault-root-relative, which is how HTML pages are served.
   const hasFileExtension = /\.[a-z\d]{1,5}$/i.test(rawTarget);
-  if (sourcePath && (rawTarget.startsWith("./") || rawTarget.startsWith("../") || hasFileExtension)) {
+  if (rawTarget.startsWith("/")) {
+    rawTarget = path.posix.normalize(rawTarget.slice(1));
+  } else if (sourcePath && (rawTarget.startsWith("./") || rawTarget.startsWith("../") || hasFileExtension)) {
     const dir = path.posix.dirname(sourcePath);
     rawTarget = path.posix.normalize(path.posix.join(dir, rawTarget));
   }

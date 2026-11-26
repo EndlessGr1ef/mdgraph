@@ -101,6 +101,20 @@ describe("parseHtmlPage", () => {
     expect(note.type).toBe("page");
   });
 
+  it("drops query strings and decodes percent-encoding in hrefs", () => {
+    const note = parseHtmlPage(
+      "p.html",
+      `<html><body>
+        <a href="a.md?v=1#x">query</a>
+        <a href="my%20report.md">encoded</a>
+        <a href="win\\path.md">backslash</a>
+        <a href="a.md#frag">fragment</a>
+      </body></html>`,
+    );
+
+    expect(note.links).toEqual(["a.md", "my report.md"]);
+  });
+
   it("derives ids from the full path so a page and a note never collide", () => {
     const page = parseHtmlPage("docs/report.html", "<html><body></body></html>");
     const note = parseHtmlPage("docs/report.md", "<html><body></body></html>");
@@ -175,6 +189,39 @@ describe("HTML indexing", () => {
     const neighbours = graph?.nodes.map((node) => node.path) ?? [];
     expect(neighbours).toContain("index.html");
     expect(graph?.edges).toHaveLength(2);
+  });
+});
+
+describe("HTML link resolution", () => {
+  it("resolves percent-encoded hrefs to the file on disk", async () => {
+    const vault = createTempVault();
+    writeFile(vault.vaultDir, "my report.md", "---\ntitle: R\n---\nbody\n");
+    writeFile(vault.vaultDir, "src.html", '<html><body><a href="my%20report.md">link</a></body></html>');
+    await syncVault(vault.db.db, vault.vaultDir);
+
+    const page = getNote(vault.db.db, "src_html");
+    expect(page?.graph.outlinks.map((link) => link.resolvedPath)).toContain("my report.md");
+    expect(page?.graph.brokenLinks).toEqual([]);
+  });
+
+  it("resolves a vault-root href to a file at the vault root", async () => {
+    const vault = createTempVault();
+    writeFile(vault.vaultDir, "root.md", "---\ntitle: Root\n---\nbody\n");
+    writeFile(vault.vaultDir, "sub/page.html", '<html><body><a href="/root.md">link</a></body></html>');
+    await syncVault(vault.db.db, vault.vaultDir);
+
+    const page = getNote(vault.db.db, "sub_page_html");
+    expect(page?.graph.outlinks.map((link) => link.resolvedPath)).toContain("root.md");
+  });
+
+  it("ignores the query string when resolving a link", async () => {
+    const vault = createTempVault();
+    writeFile(vault.vaultDir, "a.md", "---\ntitle: A\n---\nbody\n");
+    writeFile(vault.vaultDir, "p.html", '<html><body><a href="a.md?v=1">link</a></body></html>');
+    await syncVault(vault.db.db, vault.vaultDir);
+
+    const page = getNote(vault.db.db, "p_html");
+    expect(page?.graph.outlinks.map((link) => link.resolvedPath)).toContain("a.md");
   });
 });
 
