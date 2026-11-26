@@ -503,7 +503,8 @@ export function resolveLinkTarget(
 ): { status: "resolved"; id: string; path: string; title: string } | { status: "ambiguous"; candidates: ResolveCandidate[] } | { status: "broken" } {
   // Normalize relative file paths against the source note directory
   // DB paths are always POSIX (vault-relative with /), so use path.posix
-  if (sourcePath && (rawTarget.startsWith("./") || rawTarget.startsWith("../") || rawTarget.endsWith(".md"))) {
+  const hasFileExtension = /\.[a-z\d]{1,5}$/i.test(rawTarget);
+  if (sourcePath && (rawTarget.startsWith("./") || rawTarget.startsWith("../") || hasFileExtension)) {
     const dir = path.posix.dirname(sourcePath);
     rawTarget = path.posix.normalize(path.posix.join(dir, rawTarget));
   }
@@ -518,11 +519,14 @@ export function resolveLinkTarget(
   if (byPath.length === 1) return { status: "resolved", ...byPath[0] };
   if (byPath.length > 1) return { status: "ambiguous", candidates: byPath };
 
-  // 3. Stem/basename match (target + ".md" vs path or path's last component)
-  const withExt = rawTarget + ".md";
+  // 3. Stem match: an extensionless target may name a Markdown note or an HTML
+  // page, so both suffixes are tried before giving up.
+  const stems = [rawTarget + ".md", rawTarget + ".html", rawTarget + ".htm"];
   const byStem = db.prepare(
-    "SELECT id, path, title FROM notes WHERE status != 'deleted' AND (path = ? OR path LIKE ?)",
-  ).all(withExt, "%/" + withExt) as ResolveCandidate[];
+    `SELECT id, path, title FROM notes WHERE status != 'deleted' AND (${stems
+      .map(() => "path = ? OR path LIKE ?")
+      .join(" OR ")})`,
+  ).all(...stems.flatMap((stem) => [stem, "%/" + stem])) as ResolveCandidate[];
   if (byStem.length === 1) return { status: "resolved", ...byStem[0] };
   if (byStem.length > 1) return { status: "ambiguous", candidates: byStem };
 

@@ -6,10 +6,11 @@ MDGraph treats Markdown files as the source of truth and keeps a disposable SQLi
 
 ## Features
 
-- Index Markdown and MDX files from a vault directory
+- Index Markdown, MDX and HTML files from a vault directory
 - Parse frontmatter, tags, aliases, dates, and wiki/Markdown links
 - Search notes with SQLite FTS5 trigram search (matches title, path/filename, body, tags, and aliases)
-- Extract Markdown heading outlines and include them in read/search results
+- Extract Markdown heading outlines (or HTML `<h1>`-`<h6>`) and include them in read/search results
+- Index HTML pages read-only: the search body excludes script/style/svg/nav/footer and JS-rendered diagram sources
 - Watch vault changes and keep the index fresh (batched events, adaptive debounce, precise-path scoped sync)
 - Skip re-parsing unchanged files via (size, mtime) pre-filter with content-hash confirmation
 - Ignore templates and user-configured paths with `.mdgraphignore`
@@ -64,6 +65,16 @@ The MCP server exposes:
 `mdgraph_create_note` refuses to overwrite existing files. `mdgraph_update_note` updates the Markdown file first, then refreshes the SQLite index.
 
 `mdgraph_explore_notes` builds question-oriented context: the top `maxNotes` (default 3, clamped 2-5) matches are served in full, the next 10 as one-line pointers, and weak matches get a low-confidence footnote. Within a session, notes already served byte-identical are replaced by pointers (edited notes are re-served in full); the dedup store is bounded, in-memory only, and never persisted.
+
+## HTML pages
+
+HTML files (`.html`, `.htm`) are indexed as **read-only** pages with `type: "page"`:
+
+- `title` comes from `<title>`, falling back to the first `<h1>`, then the filename.
+- The search body is visible text only: `<script>`, `<style>`, `<svg>`, `<nav>`, `<footer>` and elements classed `mermaid` are dropped, so diagram DSL and CSS never pollute FTS.
+- `outline` is built from `<h1>`-`<h6>`; each heading's slug reuses its `id` attribute when present.
+- Only vault-local `<a href>` targets become graph edges (absolute URLs, `mailto:`, `//` and bare `#fragment` are skipped).
+- `mdgraph_create_note` and `mdgraph_update_note` refuse HTML paths. Rewriting a page through `matter.stringify` would replace the whole document with Markdown; edit the file directly and run `mdgraph_sync` instead.
 
 ## Data model
 
@@ -129,10 +140,11 @@ Core source files:
 - `src/indexer.ts` — vault scan, per-file indexing, scoped sync with unchanged-file skipping
 - `src/ignore.ts` — built-in and `.mdgraphignore` rules
 - `src/parser.ts` — Markdown/frontmatter/link parsing
+- `src/html.ts` — HTML page parsing (title, headings, links, visible body)
 - `src/watcher.ts` — chokidar integration with batched, adaptive-debounce syncing
 - `src/explore.ts` — question-oriented exploration with session dedup
 - `src/mcp.ts` — MCP tools
-- `src/__tests__/` — vitest suites (core, sync-scoped, sync-hardening, explore)
+- `src/__tests__/` — vitest suites (core, sync-scoped, sync-hardening, explore, html)
 
 ## Git ignore notes
 

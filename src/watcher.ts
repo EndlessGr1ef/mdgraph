@@ -1,7 +1,7 @@
 import path from "node:path";
 import chokidar from "chokidar";
 import type { Database as DatabaseHandle } from "better-sqlite3";
-import { syncChangedFiles, syncVault, isMarkdownPath } from "./indexer.js";
+import { syncChangedFiles, syncVault, isVaultDocumentPath } from "./indexer.js";
 import { createIgnoreChecker } from "./ignore.js";
 
 // Adaptive debounce: a pending set this small fires after the quick quiet
@@ -48,7 +48,7 @@ export function shouldReschedule(pendingCount: number, needsFullScan: boolean): 
 export function watchVault(db: DatabaseHandle, vaultRoot: string): ReturnType<typeof chokidar.watch> {
   const isIgnored = createIgnoreChecker(vaultRoot);
 
-  // Absolute path -> lastSeenMs for every reported markdown change. Events
+  // Absolute path -> lastSeenMs for every reported vault change. Events
   // arriving while a flush is in flight survive into a follow-up flush.
   const pending = new Map<string, number>();
   let needsFullScan = false;
@@ -90,7 +90,7 @@ export function watchVault(db: DatabaseHandle, vaultRoot: string): ReturnType<ty
   }
 
   function enqueueChange(filePath: string): void {
-    if (!isMarkdownPath(filePath) || !withinVault(filePath)) return;
+    if (!isVaultDocumentPath(filePath) || !withinVault(filePath)) return;
     pending.set(path.resolve(filePath), Date.now());
     scheduleFlush();
   }

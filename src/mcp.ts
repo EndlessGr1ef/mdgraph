@@ -9,6 +9,7 @@ import { getGraph, getNote, getStatus, openDb, searchNotes } from "./db.js";
 import { exploreNotes, ServedNotesStore } from "./explore.js";
 import { ensureNoteFresh, indexFile, syncVault, type SyncResult } from "./indexer.js";
 import { MCP_INSTRUCTIONS } from "./instructions.js";
+import { isHtmlPath } from "./html.js";
 import { assertInsideVault, resolveVaultRoot, toRelativePath } from "./paths.js";
 import { deriveTags, normalizeTags } from "./tags.js";
 import { watchVault } from "./watcher.js";
@@ -62,6 +63,14 @@ export async function updateNote(db: DatabaseHandle, vaultRoot: string, input: U
   const note = getNote(db, input.id);
   if (!note) {
     throw new Error(`Note not found: ${input.id}`);
+  }
+
+  // HTML pages are indexed read-only: rewriting one through matter.stringify
+  // would replace the whole page (template, CSS, scripts) with Markdown.
+  if (isHtmlPath(note.path)) {
+    throw new Error(
+      `Cannot update ${note.path}: HTML pages are indexed read-only. Edit the file directly, then run mdgraph_sync.`,
+    );
   }
 
   const targetPath = assertInsideVault(vaultRoot, note.path);
@@ -164,6 +173,9 @@ export async function createNote(
   vaultRoot: string,
   input: CreateNoteInput,
 ): Promise<{ success: boolean; id: string; path: string; tags: string[]; derived_tags: string[] }> {
+  if (isHtmlPath(input.path)) {
+    throw new Error(`Cannot create ${input.path}: HTML pages are indexed read-only. Write the file directly, then run mdgraph_sync.`);
+  }
   const targetPath = assertInsideVault(vaultRoot, input.path.endsWith(".md") ? input.path : `${input.path}.md`);
   await fs.mkdir(path.dirname(targetPath), { recursive: true });
   const now = new Date().toISOString().slice(0, 10);

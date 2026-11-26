@@ -33,7 +33,8 @@ function extractLinks(body: string): string[] {
   }
   for (const match of body.matchAll(MARKDOWN_LINK_RE)) {
     const target = match[1].trim();
-    if (target.endsWith(".md")) {
+    // Notes link to HTML pages too, so both extensions form graph edges.
+    if (/\.(md|html?)$/i.test(target)) {
       links.add(target);
     }
   }

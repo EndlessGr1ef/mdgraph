@@ -19,6 +19,7 @@
     "commander": "^13.1.0",
     "fast-glob": "^3.3.3",
     "gray-matter": "^4.0.3",
+    "parse5": "^8.1.1",
     "picomatch": "^4.0.4",
     "zod": "^3.25.7"
   },

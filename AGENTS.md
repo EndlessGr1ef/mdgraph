@@ -26,6 +26,7 @@ pnpm build
 - `src/db.ts` owns SQLite schema, schema version checks, upserts, search, and status queries.
 - `src/indexer.ts` scans Markdown files, indexes/removes individual files, and reconciles precise changed-path sets (`syncChangedFiles`), skipping unchanged files via (size, mtime) pre-filter with content-hash confirmation.
 - `src/parser.ts` parses frontmatter, body text, tags, aliases, dates, and links.
+- `src/html.ts` parses HTML pages (read-only `page` notes): `<title>`/first `<h1>` for the title, `<h1>`-`<h6>` for the outline, vault-local `<a href>` for links, and visible text only for the body (script/style/svg/nav/footer and `mermaid` diagram sources are dropped). `indexer.parseVaultFile` dispatches on extension.
 - `src/watcher.ts` batches vault change events with an adaptive debounce window and flushes precise paths to scoped sync; directory events and overflows fall back to a full sync.
 - `src/explore.ts` builds question-oriented exploration results with session-level dedup and pointer output.
 - `src/mcp.ts` exposes MCP tools for search, read, graph, sync, suggest_tags, create, update, and explore.
@@ -51,6 +52,7 @@ Important behaviors already covered:
 - Bad Markdown/frontmatter does not block the whole vault sync.
 - MCP create refuses overwrites.
 - MCP update rewrites Markdown and refreshes the index.
+- HTML pages are indexed and searchable, their outline and links feed the graph, and `create_note`/`update_note` refuse them (a page is never rewritten as Markdown).
 - Watch mode works even when the current working directory is outside the vault.
 - Compatible pre-version DBs are stamped; incompatible DBs are rebuilt.
 - Notes are searchable by filename even when a frontmatter title is set (path is indexed in FTS).

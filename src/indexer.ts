@@ -3,15 +3,16 @@ import path from "node:path";
 import fg from "fast-glob";
 import type { Database as DatabaseHandle } from "better-sqlite3";
 import { parseMarkdownNote } from "./parser.js";
+import { isHtmlPath, parseHtmlPage } from "./html.js";
 import { markDeleted, sha256, upsertNote } from "./db.js";
 import { toRelativePath } from "./paths.js";
 import { createIgnoreChecker, getIgnorePatterns } from "./ignore.js";
 
-const MARKDOWN_GLOBS = ["**/*.md", "**/*.mdx"];
+const VAULT_GLOBS = ["**/*.md", "**/*.mdx", "**/*.html", "**/*.htm"];
 
-export async function listMarkdownFiles(vaultRoot: string): Promise<string[]> {
+export async function listVaultFiles(vaultRoot: string): Promise<string[]> {
   const isIgnored = createIgnoreChecker(vaultRoot);
-  const files = await fg(MARKDOWN_GLOBS, {
+  const files = await fg(VAULT_GLOBS, {
     cwd: vaultRoot,
     absolute: true,
     dot: true,
@@ -20,11 +21,16 @@ export async function listMarkdownFiles(vaultRoot: string): Promise<string[]> {
   return files.filter((file) => !isIgnored(toRelativePath(vaultRoot, file)));
 }
 
+/** Dispatch on extension so HTML pages reach the HTML parser, not the frontmatter one. */
+export function parseVaultFile(relativePath: string, raw: string) {
+  return isHtmlPath(relativePath) ? parseHtmlPage(relativePath, raw) : parseMarkdownNote(relativePath, raw);
+}
+
 export async function indexFile(db: DatabaseHandle, vaultRoot: string, filePath: string): Promise<void> {
   const relativePath = toRelativePath(vaultRoot, filePath);
   const raw = await fs.readFile(filePath, "utf8");
   const stat = await fs.stat(filePath);
-  const note = parseMarkdownNote(relativePath, raw);
+  const note = parseVaultFile(relativePath, raw);
   upsertNote(db, note, stat, raw);
 }
 
@@ -63,7 +69,7 @@ async function indexFileIfChanged(db: DatabaseHandle, vaultRoot: string, filePat
   const raw = await fs.readFile(filePath, "utf8");
   if (sha256(raw) === recorded.hash) return; // content unchanged
 
-  const note = parseMarkdownNote(relativePath, raw);
+  const note = parseVaultFile(relativePath, raw);
   upsertNote(db, note, stat, raw);
 }
 
@@ -99,7 +105,7 @@ export async function ensureNoteFresh(
 /**
  * Scoped near-realtime sync for a precise list of changed paths (from the
  * watcher). Each path is reconciled against the filesystem: removed or
- * non-markdown paths are dropped from the index, surviving markdown files are
+ * non-indexable paths are dropped from the index, surviving files are
  * re-indexed only if they changed. Paths ignored by ignore rules or outside
  * the vault are skipped. The orphans in this set are covered because their
  * missing files are removed here; a full orphan sweep piggybacks on syncVault.
@@ -127,7 +133,7 @@ export async function syncChangedFiles(
       } catch {
         stat = undefined;
       }
-      if (!stat || !isMarkdownPath(absolute)) {
+      if (!stat || !isVaultDocumentPath(absolute)) {
         await removeFile(db, vaultRoot, absolute);
         removed += 1;
         continue;
@@ -162,7 +168,7 @@ function errorMessage(error: unknown): string {
 }
 
 export async function syncVault(db: DatabaseHandle, vaultRoot: string): Promise<SyncResult> {
-  const files = await listMarkdownFiles(vaultRoot);
+  const files = await listVaultFiles(vaultRoot);
   const seen = new Set(files.map((file) => toRelativePath(vaultRoot, file)));
   const existing = db.prepare("SELECT path FROM files WHERE deleted = 0").all() as Array<{ path: string }>;
   let removed = 0;
@@ -192,4 +198,9 @@ export async function syncVault(db: DatabaseHandle, vaultRoot: string): Promise<
 export function isMarkdownPath(filePath: string): boolean {
   const ext = path.extname(filePath).toLowerCase();
   return ext === ".md" || ext === ".mdx";
+}
+
+/** Every extension MDGraph indexes: Markdown notes plus HTML pages. */
+export function isVaultDocumentPath(filePath: string): boolean {
+  return isMarkdownPath(filePath) || isHtmlPath(filePath);
 }
