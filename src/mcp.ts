@@ -13,6 +13,7 @@ import { isHtmlPath } from "./html.js";
 import { assertInsideVault, resolveVaultRoot, toRelativePath } from "./paths.js";
 import { deriveTags, normalizeTags } from "./tags.js";
 import { watchVault } from "./watcher.js";
+import { VERSION } from "./version.js";
 
 const STALE_WARNING =
   "Index is stale: the note changed on disk but could not be re-indexed; run mdgraph_sync to refresh.";
@@ -204,7 +205,7 @@ export async function createNote(
 
 /** Build the MCP server with the documented initialize instructions. */
 export function createMcpServer(): McpServer {
-  return new McpServer({ name: "mdgraph", version: "0.1.0" }, { instructions: MCP_INSTRUCTIONS });
+  return new McpServer({ name: "mdgraph", version: VERSION }, { instructions: MCP_INSTRUCTIONS });
 }
 
 export async function startMcpServer(vault?: string): Promise<void> {

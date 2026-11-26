@@ -5,6 +5,7 @@ import { syncVault } from "./indexer.js";
 import { resolveVaultRoot } from "./paths.js";
 import { watchVault } from "./watcher.js";
 import { startMcpServer } from "./mcp.js";
+import { VERSION } from "./version.js";
 
 const program = new Command();
 
@@ -20,7 +21,7 @@ program
   .name("mdgraph")
   .description("Local-first Markdown knowledge graph for AI agents")
   .option("-v, --vault <path>", "Markdown vault root", process.cwd())
-  .version("0.1.0");
+  .version(VERSION);
 
 program
   .command("init")
